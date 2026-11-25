@@ -93,6 +93,6 @@ function render(d){
 
 // City dropdown + live location come from location.js; any location change re-fetches.
 const refresh = () => load().then(render);
-Aero.bindCitySelect($('city')).then(refresh);
+refresh();
 Aero.onChange(refresh);
 Aero.autoRefresh(refresh, 10 * 60 * 1000);

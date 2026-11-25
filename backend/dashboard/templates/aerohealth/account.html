@@ -17,6 +17,7 @@
     <strong>{{ user.first_name|default:user.username }}</strong>
     <span>{{ user.email }}</span>
     <span>{{ persona }} · {{ sensitivity }} sensitivity</span>
+    <button type="submit" form="logout-form" class="save kyc-logout-button">Log out</button>
   </div>
 </section>
 {% if saved %}<p class="toast" role="status">Saved ✓ Your profile has been updated.</p>{% endif %}

@@ -62,3 +62,44 @@ svg.curve{width:100%;height:150px}
 .gres button:hover,.gres button:focus{background:var(--lav);outline:0}.gres small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
 .gres .none{padding:10px 12px;font-size:13px;color:var(--muted)}
 @media(prefers-reduced-motion:reduce){.livebtn .dot{animation:none!important}}
+:root {
+  --bg: linear-gradient(135deg,#dce6ef 0%,#e5e7e6 52%,#d9e8e5 100%);
+  --ink:#1b2a3c; --muted:#526477; --brand:#0d8294; --line:rgba(27,42,60,.10);
+  --surface:rgba(246,249,252,.86); --surface-strong:rgba(248,251,253,.96);
+  --surface-border:rgba(255,255,255,.72);
+  --lav:linear-gradient(145deg,#cbe3f7,#bdd9f2);
+  --mint:linear-gradient(145deg,#c3eadb,#b2dfd0);
+  --peach:linear-gradient(145deg,#f6d9c4,#ecc9b0);
+  --sky:linear-gradient(145deg,#cfe4f7,#bfd8f0);
+}
+[data-theme="dark"] {
+  --bg:linear-gradient(135deg,#111b27 0%,#152130 52%,#112228 100%);
+  --ink:#e2ebf4; --muted:#a9bacb; --brand:#2bb5c9; --line:rgba(226,235,244,.14);
+  --surface:rgba(24,37,54,.88); --surface-strong:rgba(28,43,62,.96);
+  --surface-border:rgba(255,255,255,.12);
+  --lav:linear-gradient(145deg,#19314d,#142840);
+  --mint:linear-gradient(145deg,#163834,#112d29);
+  --peach:linear-gradient(145deg,#3d281f,#301f17);
+  --sky:linear-gradient(145deg,#1a3350,#152942);
+}
+body { background:var(--bg); background-attachment:fixed; color:var(--ink); }
+.header-tools { display:flex; align-items:center; gap:8px; }
+.lang-box,.theme-toggle {
+  border:1px solid var(--surface-border); background:var(--surface);
+  backdrop-filter:blur(12px); border-radius:999px; color:var(--ink);
+}
+.lang-box { display:flex; align-items:center; gap:6px; padding:7px 12px; }
+.lang-box select { max-width:90px; border:0; background:transparent; color:var(--ink); font:inherit; }
+.theme-toggle { width:38px; height:38px; cursor:pointer; font:inherit; font-size:19px; }
+.theme-sun,[data-theme="dark"] .theme-moon { display:none; }
+[data-theme="dark"] .theme-sun { display:inline; }
+.card { background:var(--surface); border:1px solid var(--surface-border); backdrop-filter:blur(14px); }
+.weather { background:var(--lav); }
+.air { background:var(--mint); }
+.personal { background:var(--peach); }
+.outside { background:var(--sky); }
+.bottomnav { background:var(--surface-strong); border:1px solid var(--surface-border); }
+@media (max-width:900px) {
+  .header-tools { margin-left:auto; }
+  .who { display:none; }
+}
