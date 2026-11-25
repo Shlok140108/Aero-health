@@ -26,8 +26,8 @@ SECRET_KEY = os.environ.get(
 )
 DEBUG = os.environ.get("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = [".vercel.app", "localhost", "127.0.0.1"]
-CSRF_TRUSTED_ORIGINS = ["https://*.vercel.app"]
+ALLOWED_HOSTS = [".vercel.app", "localhost", "127.0.0.1","aero-health.onrender.com"]
+CSRF_TRUSTED_ORIGINS = ["https://*.vercel.app","https://aero-health.onrender.com"]
 
 
 # Application definition
