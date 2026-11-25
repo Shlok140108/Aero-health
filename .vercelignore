@@ -1,0 +1,34 @@
+# Data and model files (host these externally, not in the bundle)
+data/
+datasets/
+*.csv
+*.nc
+*.parquet
+*.h5
+*.pkl
+*.joblib
+*.ubj
+models/
+
+# Dev / local stuff
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+notebooks/
+*.ipynb
+.git/
+.vscode/
+.DS_Store
+node_modules/
+
+# Uploaded or generated files
+media/
+logs/
+*.log
+*.sqlite3
+
+# Heavy requirements not needed by the web app
+requirements-ml.txt

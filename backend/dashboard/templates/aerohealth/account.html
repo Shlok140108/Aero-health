@@ -1,0 +1,113 @@
+{% extends "aerohealth/base.html" %}
+{% load static %}
+{% block title %}Account · AeroHealth{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'aerohealth/css/pages.css' %}">
+<link rel="stylesheet" href="{% static 'aerohealth/css/kyc.css' %}">
+{% endblock %}
+
+{% block content %}
+<section class="kyc-page-header">
+  <div>
+    <p class="kyc-kicker">YOUR AEROHEALTH PROFILE</p>
+    <h1>Personalised profile &amp; KYC</h1>
+    <p class="muted">Tell us what matters for your air-quality and weather guidance. You can skip optional questions and edit your answers anytime.</p>
+  </div>
+  <div class="kyc-account-chip">
+    <strong>{{ user.first_name|default:user.username }}</strong>
+    <span>{{ user.email }}</span>
+    <span>{{ persona }} · {{ sensitivity }} sensitivity</span>
+  </div>
+</section>
+{% if saved %}<p class="toast" role="status">Saved ✓ Your profile has been updated.</p>{% endif %}
+<form method="post" id="profile-form" class="acct kyc-account-form">
+  {% csrf_token %}
+  {% if form.errors %}<div class="kyc-form-errors" role="alert"><strong>Please check the profile details.</strong>{{ form.errors }}</div>{% endif %}
+  <div class="kyc-legacy-state" hidden aria-hidden="true">{{ form.as_p }}</div>
+    <section class="card kyc-card" id="kyc-section">
+    <div class="kyc-heading"><div><span class="kyc-kicker">PERSONALISED PROFILE</span><h3>Onboarding &amp; KYC</h3><p class="muted">Answer what you're comfortable sharing. You can skip optional questions and edit these details anytime.</p></div><span class="kyc-progress-label" id="kyc-progress-label">Profile setup</span></div>
+    <div class="kyc-progress"><span id="kyc-progress"></span></div>
+
+    <details class="kyc-stage" open><summary><span>01</span><b>Basics</b><small>Start here</small></summary><div class="kyc-grid">
+      <label>What should we call you?<input class="field" name="kyc_display_name" maxlength="100" value="{{ profile.kyc_data.display_name|default:user.first_name }}" placeholder="Name or nickname"></label>
+      <label>Which age group are you in?<select class="field" name="kyc_age_group"><option value="">Select age group</option><option value="under_12">Under 12</option><option value="13_17">13–17</option><option value="18_30">18–30</option><option value="31_45">31–45</option><option value="46_59">46–59</option><option value="60_plus">60 and above</option></select></label>
+      <label>What is your gender?<select class="field" name="kyc_gender" id="kyc-gender"><option value="">Select</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option><option value="prefer_not">Prefer not to say</option></select></label>
+    </div></details>
+
+    <details class="kyc-stage"><summary><span>02</span><b>Conditional questions</b><small>Shown when relevant</small></summary><div class="kyc-grid">
+      <div class="kyc-field" id="kyc-pregnancy-block"><label>Are you currently pregnant?<select class="field" name="kyc_pregnant" id="kyc-pregnant"><option value="">Skip / not applicable</option><option value="yes">Yes</option><option value="no">No</option><option value="prefer_not">Prefer not to say</option></select></label>
+        <label id="kyc-trimester-block">Which trimester?<select class="field" name="kyc_trimester"><option value="">Select</option><option>First trimester</option><option>Second trimester</option><option>Third trimester</option><option>Not sure</option></select></label>
+        <label id="kyc-complications-block">Any pregnancy complications? <select class="field" name="kyc_pregnancy_complications"><option value="">Skip</option><option>High blood pressure</option><option>Gestational diabetes</option><option>Other</option><option>None</option></select></label></div>
+      <div class="kyc-field" id="kyc-senior-block"><label>Do you live alone?<select class="field" name="kyc_live_alone"><option value="">Skip</option><option value="yes">Yes</option><option value="family">No, I live with family</option><option value="other">Other</option></select></label><label>Do you use mobility support?<select class="field" name="kyc_mobility_support"><option value="">Skip</option><option>Walking stick</option><option>Walker</option><option>Wheelchair</option><option>Other</option><option>None</option></select></label></div>
+      <div class="kyc-field" id="kyc-child-block"><label>Child's daily routine<select class="field" name="kyc_child_routine"><option value="">Skip</option><option>School and regular outdoor play</option><option>School, mostly indoors otherwise</option><option>Mostly at home, regular outdoor play</option><option>Mostly indoors</option><option>Other</option></select></label><label>Child's age group<select class="field" name="kyc_child_age_group"><option value="">Select</option><option>Under 5</option><option>5–12</option><option>13–17</option></select></label></div>
+    </div></details>
+
+    <details class="kyc-stage"><summary><span>03</span><b>Location</b><small>For local AQI and weather</small></summary><div class="kyc-grid">
+      <label>Location access preference<select class="field" name="kyc_location_permission"><option value="">Choose</option><option>Allow always</option><option>Allow only while using the app</option><option>Don't allow; I'll enter it manually</option></select></label>
+      <label>Home city or area<input class="field" name="kyc_home_area" value="{{ profile.kyc_data.home_area|default:profile.city }}" placeholder="City / locality"></label>
+      <label>Do you work or study elsewhere?<select class="field" name="kyc_work_location"><option value="">Choose</option><option>Different area in same city</option><option>Different city</option><option>Same area as home</option><option>Work or study from home</option><option>Other</option></select></label>
+      <label>How often do you travel to other cities?<select class="field" name="kyc_travel_frequency"><option value="">Choose</option><option>Weekly or more</option><option>Monthly</option><option>A few times a year</option><option>Rarely or never</option><option>Other</option></select></label>
+    </div></details>
+
+    <details class="kyc-stage"><summary><span>04</span><b>Health profile</b><small>Optional · sensitive information</small></summary><div class="kyc-grid">
+      <fieldset><legend>Any of these health conditions?</legend><div class="kyc-checks"><label><input type="checkbox" name="kyc_health_conditions" value="Asthma"> Asthma</label><label><input type="checkbox" name="kyc_health_conditions" value="COPD or other lung disease"> COPD / lung disease</label><label><input type="checkbox" name="kyc_health_conditions" value="Allergies (dust, pollen)"> Dust / pollen allergies</label><label><input type="checkbox" name="kyc_health_conditions" value="Heart condition"> Heart condition</label><label><input type="checkbox" name="kyc_health_conditions" value="Diabetes"> Diabetes</label><label><input type="checkbox" name="kyc_health_conditions" value="High or low blood pressure"> Blood pressure</label><label><input type="checkbox" name="kyc_health_conditions" value="Skin conditions"> Skin conditions</label><label><input type="checkbox" name="kyc_health_conditions" value="Migraine"> Migraine</label><label><input type="checkbox" name="kyc_health_conditions" value="Sinus problems"> Sinus problems</label><label><input type="checkbox" name="kyc_health_conditions" value="None"> None</label><label><input type="checkbox" name="kyc_health_conditions" value="Prefer not to say"> Prefer not to say</label></div></fieldset>
+      <fieldset><legend>Are you sensitive to any of these?</legend><div class="kyc-checks"><label><input type="checkbox" name="kyc_sensitivities" value="Smoke"> Smoke</label><label><input type="checkbox" name="kyc_sensitivities" value="Dust"> Dust</label><label><input type="checkbox" name="kyc_sensitivities" value="Strong smells"> Strong smells</label><label><input type="checkbox" name="kyc_sensitivities" value="Extreme heat"> Extreme heat</label><label><input type="checkbox" name="kyc_sensitivities" value="Extreme cold"> Extreme cold</label><label><input type="checkbox" name="kyc_sensitivities" value="High humidity"> High humidity</label><label><input type="checkbox" name="kyc_sensitivities" value="None"> None</label></div></fieldset>
+      <label>Do you use an inhaler or weather-affected medication?<select class="field" name="kyc_medication"><option value="">Skip</option><option>Yes, I use an inhaler</option><option>Yes, other regular medication</option><option>No</option><option>Prefer not to say</option></select></label>
+      <label>Do you smoke?<select class="field" name="kyc_smoking"><option value="">Skip</option><option>Yes, regularly</option><option>Occasionally</option><option>I have quit</option><option>No</option><option>Prefer not to say</option></select></label>
+    </div></details>
+
+    <details class="kyc-stage"><summary><span>05</span><b>Lifestyle</b><small>For practical recommendations</small></summary><div class="kyc-grid">
+      <label>Daily routine<select class="field" name="kyc_daily_routine"><option value="">Choose</option><option>Mostly indoors</option><option>Mix of indoors and outdoors</option><option>Mostly outdoors</option><option>Other</option></select></label>
+      <fieldset><legend>Outdoor activities (multiple choice)</legend><div class="kyc-checks"><label><input type="checkbox" name="kyc_outdoor_activities" value="Walking"> Walking</label><label><input type="checkbox" name="kyc_outdoor_activities" value="Running"> Running</label><label><input type="checkbox" name="kyc_outdoor_activities" value="Cycling"> Cycling</label><label><input type="checkbox" name="kyc_outdoor_activities" value="Gym or workouts"> Gym / workouts</label><label><input type="checkbox" name="kyc_outdoor_activities" value="Yoga"> Yoga</label><label><input type="checkbox" name="kyc_outdoor_activities" value="Sports"> Sports</label><label><input type="checkbox" name="kyc_outdoor_activities" value="Farming"> Farming</label><label><input type="checkbox" name="kyc_outdoor_activities" value="Delivery or field work"> Delivery / field work</label><label><input type="checkbox" name="kyc_outdoor_activities" value="None"> None</label></div></fieldset>
+      <label>When do you usually go out?<select class="field" name="kyc_usual_outing_time"><option value="">Choose</option><option>Early morning</option><option>Afternoon</option><option>Evening</option><option>Night</option><option>It varies</option></select></label>
+      <label>Usual transport<select class="field" name="kyc_transport"><option value="">Choose</option><option>Walk</option><option>Two-wheeler</option><option>Car</option><option>Public transport</option><option>Work from home</option><option>Other</option></select></label>
+      <fieldset><legend>What do you have at home? (multiple choice)</legend><div class="kyc-checks"><label><input type="checkbox" name="kyc_home_equipment" value="Air purifier"> Air purifier</label><label><input type="checkbox" name="kyc_home_equipment" value="N95 or similar masks"> N95 / similar masks</label><label><input type="checkbox" name="kyc_home_equipment" value="Air conditioner"> Air conditioner</label><label><input type="checkbox" name="kyc_home_equipment" value="None"> None</label></div></fieldset>
+    </div></details>
+
+    <details class="kyc-stage"><summary><span>06</span><b>Notification preferences</b><small>Choose what matters to you</small></summary><div class="kyc-grid">
+      <fieldset><legend>Which alerts would you like? (multiple choice)</legend><div class="kyc-checks"><label><input type="checkbox" name="kyc_alert_types" value="AQI"> Air quality (AQI)</label><label><input type="checkbox" name="kyc_alert_types" value="Heat"> Heat</label><label><input type="checkbox" name="kyc_alert_types" value="Rain"> Rain</label><label><input type="checkbox" name="kyc_alert_types" value="UV index"> UV index</label><label><input type="checkbox" name="kyc_alert_types" value="Pollen"> Pollen</label><label><input type="checkbox" name="kyc_alert_types" value="Cold"> Cold</label><label><input type="checkbox" name="kyc_alert_types" value="Daily health tips"> Daily health tips</label></div></fieldset>
+      <label>At what AQI level should we alert you?<select class="field" name="kyc_aqi_threshold"><option value="">Use recommended default</option><option>Moderate and above</option><option>Unhealthy for sensitive groups and above</option><option>Unhealthy and above</option><option>Hazardous only</option></select></label>
+      <fieldset><legend>How should we reach you? (multiple choice)</legend><div class="kyc-checks"><label><input type="checkbox" name="kyc_notification_channels" value="Browser notification"> Browser notification</label><label><input type="checkbox" name="kyc_notification_channels" value="Email"> Email</label><label><input type="checkbox" name="kyc_notification_channels" value="SMS"> SMS</label><label><input type="checkbox" name="kyc_notification_channels" value="WhatsApp"> WhatsApp</label></div></fieldset>
+      <label>Daily summary time<select class="field" name="kyc_daily_summary_time"><option value="">Choose</option><option>Early morning (6–8 AM)</option><option>Morning (8–10 AM)</option><option>Evening (5–7 PM)</option><option>I don't want a daily summary</option></select></label>
+      <label>Preferred language<select class="field" name="kyc_language"><option value="">Choose</option><option>English</option><option>Hindi</option><option>Marathi</option><option>Tamil</option><option>Bengali</option><option>Other</option></select></label>
+      <label>Temperature unit<select class="field" name="kyc_temperature_unit"><option value="Celsius">Celsius (°C)</option><option value="Fahrenheit">Fahrenheit (°F)</option></select></label>
+    </div></details>
+    <div class="kyc-field">
+  <button type="button" class="save" id="enable-push-btn">
+    Enable browser notifications
+  </button>
+  <p class="muted help" id="push-status" role="status">
+    Enable notifications to receive important air-quality alerts.
+  </p>
+</div>
+
+    <details class="kyc-stage"><summary><span>07</span><b>Family profiles</b><small>Optional · future family features</small></summary><div class="kyc-grid">
+      <label>Add family members?<select class="field" name="kyc_family_add"><option value="">Choose</option><option>Yes, add them now</option><option>Maybe later</option><option>No, just me</option></select></label>
+      <fieldset><legend>Who would you like to add? (multiple choice)</legend><div class="kyc-checks"><label><input type="checkbox" name="kyc_family_members" value="Spouse or partner"> Spouse / partner</label><label><input type="checkbox" name="kyc_family_members" value="Child"> Child</label><label><input type="checkbox" name="kyc_family_members" value="Parent"> Parent</label><label><input type="checkbox" name="kyc_family_members" value="Grandparent"> Grandparent</label><label><input type="checkbox" name="kyc_family_members" value="Sibling"> Sibling</label></div></fieldset>
+      <label>How should their location be shared?<select class="field" name="kyc_family_location_share"><option value="">Choose</option><option>I'll enter it manually</option><option>They approve a sharing link</option><option>They share their live location</option><option>Other</option></select></label>
+      <label>What can you do with their profile?<select class="field" name="kyc_family_permissions"><option value="">Choose</option><option>View only</option><option>View and manage alerts and profile</option><option>Ask me each time</option><option>Other</option></select></label>
+      <p class="muted help">Family location sharing must be approved by the person whose location is shared. Family profile creation can be completed when that feature is enabled.</p>
+    </div></details>
+
+    <details class="kyc-stage" open><summary><span>08</span><b>Consent &amp; privacy</b><small>Review before saving</small></summary><div class="kyc-consent">
+      <p>We explain what information is collected and why. You can edit or delete this anytime.</p>
+      <label><input type="checkbox" name="kyc_health_consent" value="yes" {% if profile.kyc_data.health_consent %}checked{% endif %}> I agree to use my health information for personalised recommendations.</label>
+      <label><input type="checkbox" name="kyc_location_consent" value="yes" {% if profile.kyc_data.location_consent %}checked{% endif %}> I agree to use my location data for live AQI and weather.</label>
+      <label><input type="checkbox" name="kyc_basic_only" value="yes" {% if profile.kyc_data.basic_only %}checked{% endif %}> I do not agree right now; continue with basic features only.</label>
+      <small>Leave either unchecked to withhold that category of information. You can still use basic features. Health guidance is general information, not medical advice.</small>
+      <label class="kyc-other">Anything else you'd like us to know? (Optional)<textarea class="field" name="kyc_other_details" rows="3" placeholder="Add details for any Other answers above"></textarea></label>
+    </div></details>
+  </section>
+  {{ profile.kyc_data|json_script:"kyc-existing-data" }}
+  <div class="savebar kyc-savebar">
+    <span class="muted">🔒 Your information stays editable. Health guidance is informational, not medical advice.</span>
+    <button type="submit" class="save">Save profile ✓</button>
+  </div>
+</form>
+<form id="logout-form" method="post" action="{% url 'logout' %}" hidden>{% csrf_token %}</form>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'aerohealth/js/profileform.js' %}"></script>
+<script src="{% static 'aerohealth/js/alertsettings.js' %}"></script>
+<script type="module" src="{% static 'aerohealth/js/firebase-push.js' %}"></script>
+{% endblock %}

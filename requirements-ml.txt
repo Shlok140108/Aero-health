@@ -1,0 +1,21 @@
+# ML, ingestion and worker dependencies.
+# Install on your laptop / Render worker / GitHub Actions, NOT on Vercel.
+# Usage: pip install -r requirements.txt -r requirements-ml.txt
+-r requirements.txt
+
+# Models
+xgboost>=2.0
+scikit-learn>=1.4
+pandas>=2.2
+numpy>=1.26
+joblib>=1.3
+prophet>=1.1
+
+# Satellite / gridded data
+xarray>=2024.1
+netCDF4>=1.6
+
+# Background jobs and alerts
+celery>=5.3
+redis>=5.0
+twilio>=9.0

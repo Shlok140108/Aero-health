@@ -1,0 +1,94 @@
+{% load static socialaccount %}<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Create your profile · AeroHealth</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'aerohealth/css/aerohealth.css' %}">
+<link rel="stylesheet" href="{% static 'aerohealth/css/pages.css' %}">
+<link rel="stylesheet" href="{% static 'aerohealth/css/accounts.css' %}"></head>
+<body class="authbody">
+<div class="auth">
+  <div class="hero"><a class="logo light" href="/"><span class="logo-mark">≋</span> aerohealth</a>
+    <div class="herotext"><div class="glass">A few quick questions · about 2 minutes</div>
+      <h2>Alerts that know<br>who they're for.</h2>
+      <p>Your age, work and health decide when air and heat matter to you. Tell us once and we'll do the watching.</p></div></div>
+
+  <div class="formside wide-form">
+    <p class="kicker">{% if social %}ALMOST THERE, {{ name|upper }}{% else %}CREATE YOUR PROFILE{% endif %}</p>
+    <p class="muted" id="step-label">Step 1 of 5</p>
+    <div class="steps" id="steps"></div>
+
+    <form method="post" id="profile-form" data-wizard>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<p class="err">{{ form.non_field_errors }}</p>{% endif %}
+
+      {% if not social %}
+      <section class="step" data-check="account" data-title="Let's start with you">
+        <h1>Let's start with you</h1>
+        <div class="gform"><button type="submit" form="google-form" class="gbtn"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.9 2.3-8.5 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg> Continue with Google</button></div>
+        <p class="muted center" style="margin:12px 0 18px">or create an account with a username</p>
+        {% include "aerohealth/_field.html" with f=form.full_name %}
+        {% include "aerohealth/_field.html" with f=form.username %}
+        {% include "aerohealth/_field.html" with f=form.password1 %}
+        {% include "aerohealth/_field.html" with f=form.password2 %}
+      </section>
+
+      {% endif %}
+
+      <section class="step" data-title="How can we reach you?">
+        <h1>How can we reach you?</h1>
+        {% include "aerohealth/_field.html" with f=form.age %}
+        {% include "aerohealth/_field.html" with f=form.phone %}
+        {% if not social %}{% include "aerohealth/_field.html" with f=form.email %}{% endif %}
+        <div class="sw-row"><span>{{ form.notify_email.label }}</span>{{ form.notify_email }}</div>
+        <div class="sw-row"><span>{{ form.notify_sms.label }}</span>{{ form.notify_sms }}</div>
+      </section>
+
+      <section class="step" data-check="work" data-title="Your work and daily life">
+        <h1>Your work and daily life</h1>
+        {% include "aerohealth/_field.html" with f=form.occupation %}
+        {% include "aerohealth/_field.html" with f=form.job_title %}
+        {% include "aerohealth/_field.html" with f=form.outdoor_hours %}
+        {% include "aerohealth/_field.html" with f=form.gender %}
+        <div id="preg-block" hidden>
+          {% include "aerohealth/_field.html" with f=form.pregnancy_status %}
+          <div id="tri-block" hidden>{% include "aerohealth/_field.html" with f=form.trimester %}</div>
+        </div>
+      </section>
+
+      <section class="step" data-check="health" data-title="Your health">
+        <h1>Your health</h1>
+        <p class="muted">Only used to decide when to warn you, and how. You can change this any time.</p>
+        <div class="fld{% if form.conditions.errors %} bad{% endif %}" id="cond-wrap">
+          <label class="lbl">{{ form.conditions.label }}</label>
+          {{ form.conditions }}
+          {% for e in form.conditions.errors %}<p class="err">{{ e }}</p>{% endfor %}
+          <p class="err js-err" hidden></p>
+        </div>
+        <div class="sw-row"><span>{{ form.smoker.label }}</span>{{ form.smoker }}</div>
+        <div class="sw-row"><span>{{ form.breathless_in_smog.label }}</span>{{ form.breathless_in_smog }}</div>
+      </section>
+
+      <section class="step" data-title="Where are you based?">
+        <h1>Where are you based?</h1>
+        {% include "aerohealth/_field.html" with f=form.city %}
+        <datalist id="city-list"></datalist>
+        {% include "aerohealth/_field.html" with f=form.state %}
+        {{ form.lat }}{{ form.lon }}
+        <button type="button" class="ghost wide" id="geo-btn">📍 Use my current location</button>
+        <p class="muted help" id="geo-msg" role="status"></p>
+        <p class="muted help">🛡 Health guidance is informational, not medical advice.</p>
+      </section>
+
+      <div class="step-nav">
+        <button type="button" class="ghost" id="back" hidden>← Back</button>
+        <button type="button" class="save" id="next">Continue →</button>
+        <button type="submit" class="save" id="finish" hidden>Create my account ✓</button>
+      </div>
+    </form>
+    {% if not social %}<form id="google-form" method="post" action="{% provider_login_url 'google' %}" hidden>{% csrf_token %}</form>{% endif %}
+    {% if social %}<form method="post" action="{% url 'logout' %}" class="center">{% csrf_token %}<button class="btn" style="background:none;border:0;cursor:pointer;font:inherit;font-weight:600">Not you? Sign out</button></form>
+    {% else %}<p class="muted center">Already have an account? <a class="btn" style="margin:0" href="/login/">Sign in</a></p>{% endif %}
+  </div>
+</div>
+<script src="{% static 'aerohealth/js/profileform.js' %}"></script>
+</body></html>
