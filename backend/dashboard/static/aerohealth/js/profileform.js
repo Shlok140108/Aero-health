@@ -11,6 +11,35 @@
   if (!form) return;
   const f = n => form.elements[n];
 
+  const savedKyc = document.getElementById('kyc-existing-data');
+if (savedKyc) {
+  try {
+    const values = JSON.parse(savedKyc.textContent);
+
+    for (const [key, value] of Object.entries(values)) {
+      const controls = [...form.elements].filter(
+        element => element.name === `kyc_${key}`
+      );
+      if (!controls.length) continue;
+
+      if (controls.every(element => element.type === 'checkbox')) {
+        const selected = Array.isArray(value) ? value : (value === true ? ['yes'] : []);
+        controls.forEach(element => {
+          element.checked = selected.includes(element.value);
+        });
+      } else if (controls[0].type === 'radio') {
+        controls.forEach(element => {
+          element.checked = element.value === value;
+        });
+      } else {
+        controls[0].value = value ?? '';
+      }
+    }
+  } catch (error) {
+    console.error('Could not restore saved account answers:', error);
+  }
+}
+
   /* ---- pregnancy questions ---- */
   function syncPregnancy() {
     const age = parseInt(f('age').value, 10);
