@@ -78,7 +78,11 @@ async function fetchWeather() {
     const j = await r.json().catch(() => ({}));
     if (mine !== seq) return;                         // a newer request (e.g. you moved again) supersedes this one
     if (!r.ok) throw new Error(j.error || 'Could not load the weather');
-    data = j; note(''); renderWeather();
+    data = j;
+    note(j.stale
+      ? 'Weather API is temporarily unavailable; showing the last saved weather reading.'
+      : '');
+    renderWeather();
   } catch (e) {
     if (mine !== seq) return;
     if (data) { note(`${e.message}. Showing the last update.`); }

@@ -178,16 +178,28 @@ def overview_api(request):
         lat, lon = parse_coords(request, india_only=True)
     except ValueError as e:
         return JsonResponse({"error": str(e)}, status=400)
+
     key = f"overview:{lat}:{lon}"
+    stale_key = f"{key}:stale"
     data = cache.get(key)
+    stale = False
+
     if data is None:
         try:
             data = build(lat, lon)
-        except Exception as e:                      # the page falls back to sample data on any non-200
-            return JsonResponse({"error": str(e)}, status=502)
-        cache.set(key, data, 600)                   # 10-minute cache
+        except Exception as e:
+            data = cache.get(stale_key)
+            if data is None:
+                return JsonResponse({"error": str(e)}, status=502)
+            stale = True
+        else:
+            cache.set(key, data, 600)
+            cache.set(stale_key, data, 86400)
+
     payload = dict(data, place=request.GET.get("place", "Delhi"))
-    payload.update(for_overview(request.user, payload))     # per-user part: never put this in the shared cache
+    if stale:
+        payload["stale"] = True
+    payload.update(for_overview(request.user, payload))
     return JsonResponse(payload)
 
 

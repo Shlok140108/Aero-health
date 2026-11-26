@@ -39,7 +39,13 @@ function render(d){
   const c = cat(d.aqi.value), first = d.user.name.split(' ')[0];
   $('username').textContent = d.user.name; $('avatar').textContent = first[0];
   $('greeting').textContent = `A brighter day starts here, ${first}.`;
-  $('stamp').innerHTML = `${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}<br>${d.updated}${d.demo?'<br><b style="color:#e07a2f">Sample data: API not reachable</b>':''}`;
+  const dataNotice = d.demo
+  ? '<br><b style="color:#e07a2f">Sample data: API not reachable</b>'
+  : d.stale
+    ? '<br><b style="color:#e07a2f">Showing last saved weather; live API is temporarily unavailable.</b>'
+    : '';
+
+$('stamp').innerHTML =`${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}<br>${d.updated}${dataNotice}`;
 
   $('weather').innerHTML = `
     <div class="muted">📍 ${Aero.esc(d.place)}</div>

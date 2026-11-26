@@ -21,7 +21,10 @@ GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
 REVERSE_URL = "https://nominatim.openstreetmap.org/reverse"
 USER_AGENT = "AeroHealth/1.0 (student project; local development)"   # Nominatim policy requires one
 
-LIVE_TTL = 300          # Open-Meteo "current" refreshes every 15 min; 5 min cache keeps it feeling live
+LIVE_TTL = 300
+WEATHER_UPDATE_TTL = 900
+WEATHER_UPDATE_STALE_TTL = 3600
+STALE_TTL = 86400          # Open-Meteo "current" refreshes every 15 min; 5 min cache keeps it feeling live
 NAN = float("nan")
 
 # WMO weather code -> (label, day icon, night icon)
@@ -53,17 +56,32 @@ def _round(v, nd=0):
 
 def fetch_current_weather(lat, lon):
     """Fetch current weather fields needed for periodic push summaries."""
-    data = _get(WEATHER_URL, {
-        "latitude": lat,
-        "longitude": lon,
-        "timezone": "auto",
-        "wind_speed_unit": "kmh",
-        "current": (
-            "temperature_2m,apparent_temperature,relative_humidity_2m,"
-            "precipitation,weather_code,wind_speed_10m,is_day"
-        ),
-        "hourly": "precipitation_probability",
-    })
+    lat, lon = round(lat, 2), round(lon, 2)
+    key = f"weather-update:{lat}:{lon}"
+    stale_key = f"{key}:stale"
+
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+
+    try:
+        data = _get(WEATHER_URL, {
+            "latitude": lat,
+            "longitude": lon,
+            "timezone": "auto",
+            "wind_speed_unit": "kmh",
+            "current": (
+                "temperature_2m,apparent_temperature,relative_humidity_2m,"
+                "precipitation,weather_code,wind_speed_10m,is_day"
+            ),
+            "hourly": "precipitation_probability",
+        })
+    except requests.RequestException:
+        stale = cache.get(stale_key)
+        if stale is not None:
+            return stale
+        raise
+
     current, hourly = data["current"], data["hourly"]
     observed_at = current["time"]
     hour_index = next(
@@ -71,7 +89,7 @@ def fetch_current_weather(lat, lon):
         0,
     )
     description, _ = wmo(current["weather_code"], current.get("is_day", 1))
-    return {
+    result = {
         "description": description,
         "temperature": _round(current["temperature_2m"]),
         "feels_like": _round(current["apparent_temperature"]),
@@ -81,7 +99,9 @@ def fetch_current_weather(lat, lon):
         "rain_chance": _round(hourly["precipitation_probability"][hour_index]),
         "observed_at": observed_at,
     }
-
+    cache.set(key, result, WEATHER_UPDATE_TTL)
+    cache.set(stale_key, result, WEATHER_UPDATE_STALE_TTL)
+    return result
 
 def _theme(code, is_day):
     """Background theme key for the hero card."""
@@ -194,21 +214,42 @@ def build_live(lat, lon):
 
 
 def live_api(request):
-    """GET /api/live/?lat=&lon=  (any location on Earth)"""
+    """GET /api/live/?lat=&lon= (any location on Earth)."""
     try:
         lat, lon = parse_coords(request)
     except ValueError as e:
         return JsonResponse({"error": str(e)}, status=400)
+
     key = f"live:{lat}:{lon}"
+    stale_key = f"{key}:stale"
     data = cache.get(key)
+    stale = False
+
     if data is None:
         try:
             data = build_live(lat, lon)
         except requests.RequestException:
-            return JsonResponse({"error": "Weather service is unreachable right now. Try again shortly."}, status=502)
+            data = cache.get(stale_key)
+            if data is None:
+                return JsonResponse(
+                    {"error": "Weather service is unreachable right now. Try again shortly."},
+                    status=502,
+                )
+            stale = True
         except Exception as e:
-            return JsonResponse({"error": f"Could not build the forecast: {e}"}, status=502)
-        cache.set(key, data, LIVE_TTL)
+            data = cache.get(stale_key)
+            if data is None:
+                return JsonResponse(
+                    {"error": f"Could not build the forecast: {e}"},
+                    status=502,
+                )
+            stale = True
+        else:
+            cache.set(key, data, LIVE_TTL)
+            cache.set(stale_key, data, STALE_TTL)
+
+    if stale:
+        data = dict(data, stale=True)
     return JsonResponse(data)
 
 
