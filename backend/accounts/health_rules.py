@@ -180,8 +180,8 @@ def for_overview(user, data):
         alerts.append({"level": "info", "title": "Make these alerts yours",
                        "text": "Create a free profile and alerts will match your age, work and health.",
                        "href": "/signup/"})
-        return {"user": {"name": "Guest", "persona": "Sign in to personalise", "sensitivity": "Standard"},
+        return {"user": {"name": "Sign in", "persona": "Sign in to personalise", "sensitivity": "Standard"},
                 "alerts": alerts}
-    return {"user": {"name": user.first_name or user.username, "persona": persona(profile),
+    return {"user": {"name": user.username, "persona": persona(profile),
                      "sensitivity": sensitivity(profile)},
             "alerts": alerts}

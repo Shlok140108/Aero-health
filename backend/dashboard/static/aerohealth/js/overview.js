@@ -3,10 +3,11 @@ const CATS = [[50,'Good','#3aa655'],[100,'Satisfactory','#8fc43f'],[200,'Moderat
               [300,'Poor','#f08a24'],[400,'Very Poor','#e0443e'],[500,'Severe','#9b1c31']];
 const cat = v => CATS.find(c => v <= c[0]) || CATS[5];
 const $ = id => document.getElementById(id);
+const fallbackName = $('username')?.textContent.trim() || 'Sign in';
 
 // Sample data. The real API should return this exact shape (see /api/overview/ contract).
 const SAMPLE = {
-  user:{name:'Guest',persona:'Sign in to personalise',sensitivity:'Standard'}, alerts:[],
+  user:{name:fallbackName,persona:'Sign in to personalise',sensitivity:'Standard'}, alerts:[],
   place:'Delhi', updated:'Updated at 9:41 AM IST',
   weather:{temp:28,desc:'Partly cloudy',feels:30,hi:31,lo:23,wind:12,humidity:68,uv:'6 · High'},
   aqi:{value:88,source:'Live sensor',pm25:34,pm10:61,o3:32,no2:12,note:'A brief rise to 112 is predicted around 3 PM.'},

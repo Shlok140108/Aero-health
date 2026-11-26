@@ -132,15 +132,67 @@ class LoginAccountTests(TestCase):
             guidance_sensitivity="standard",
             weather_updates_enabled="yes",
             kyc_location_consent="yes",
+            kyc_health_consent="yes",
             kyc_display_name="Asha",
             kyc_age_group="18_30",
+            kyc_gender="female",
+            kyc_pregnant="no",
+            kyc_pregnancy_complications="None",
+            kyc_live_alone="family",
+            kyc_mobility_support="None",
+            kyc_child_routine="Mostly indoors",
+            kyc_child_age_group="5–12",
+            kyc_location_permission="Allow only while using the app",
+            kyc_health_conditions=["Asthma", "Diabetes"],
+            kyc_sensitivities=["Smoke", "Dust"],
             kyc_home_area="Pune",
+            kyc_work_location="Same area as home",
+            kyc_travel_frequency="Rarely or never",
+            kyc_medication="No",
+            kyc_smoking="No",
+            kyc_daily_routine="Mix of indoors and outdoors",
+            kyc_outdoor_activities=["Walking", "Cycling"],
+            kyc_usual_outing_time="Evening",
+            kyc_transport="Public transport",
+            kyc_home_equipment=["Air purifier"],
+            kyc_alert_types=["AQI", "Heat"],
+            kyc_aqi_threshold="Unhealthy and above",
+            kyc_notification_channels=["Browser notification", "Email"],
+            kyc_daily_summary_time="Morning (8–10 AM)",
+            kyc_language="Hindi",
+            kyc_temperature_unit="Celsius",
+            kyc_family_add="No, just me",
+            kyc_family_members=["Child"],
+            kyc_family_location_share="I'll enter it manually",
+            kyc_family_permissions="View only",
+            kyc_other_details="Keep my saved profile answers",
         )
         response = self.client.post("/account/", account_data)
         self.assertEqual(response.status_code, 302)
         profile = UserProfile.objects.get(user__username="asha_r")
         self.assertTrue(profile.weather_updates_enabled)
         self.assertTrue(profile.kyc_data["location_consent"])
+        self.assertEqual(profile.kyc_data["age_group"], "18_30")
+        self.assertEqual(profile.kyc_data["gender"], "female")
+        self.assertEqual(profile.kyc_data["health_conditions"], ["Asthma", "Diabetes"])
+        self.assertEqual(profile.kyc_data["sensitivities"], ["Smoke", "Dust"])
+        self.assertEqual(profile.kyc_data["outdoor_activities"], ["Walking", "Cycling"])
+        self.assertEqual(profile.kyc_data["family_permissions"], "View only")
+        self.assertEqual(profile.kyc_data["other_details"], "Keep my saved profile answers")
+        page = self.client.get("/account/").content.decode()
+        self.assertIn('id="kyc-existing-data"', page)
+        self.assertIn('"age_group": "18_30"', page)
+        self.assertIn('"sensitivities": ["Smoke", "Dust"]', page)
+        self.assertIn('"family_permissions": "View only"', page)
+
+        invalid_data = dict(account_data, city="", lat="", lon="",
+                            kyc_outdoor_activities=["Running"],
+                            kyc_other_details="Keep this while I fix the form")
+        invalid_response = self.client.post("/account/", invalid_data)
+        self.assertEqual(invalid_response.status_code, 200)
+        invalid_page = invalid_response.content.decode()
+        self.assertIn('"outdoor_activities": ["Running"]', invalid_page)
+        self.assertIn('"other_details": "Keep this while I fix the form"', invalid_page)
 
         account_data.pop("kyc_location_consent")
         response = self.client.post("/account/", account_data)
@@ -152,6 +204,8 @@ class LoginAccountTests(TestCase):
     def test_account_page_has_csrf_protected_logout_button(self):
         self.client.login(username="asha_r", password="Tr1cky-Pass-93")
         html = self.client.get("/account/").content.decode()
+        self.assertIn("<strong>asha_r</strong>", html)
+        self.assertNotIn("Outdoor worker", html)
         self.assertIn('<button type="submit" form="logout-form" class="save kyc-logout-button">Log out</button>', html)
         self.assertIn('<form id="logout-form" method="post" action="/logout/" hidden>', html)
         self.assertIn('name="csrfmiddlewaretoken"', html)
@@ -163,11 +217,11 @@ class OverviewIntegration(TestCase):
 
     def test_guest_and_member_get_different_alerts(self):
         g = hr.for_overview(NS(is_authenticated=False), self.SHARED)
-        self.assertEqual(g["user"]["name"], "Guest"); self.assertIn("href", g["alerts"][-1])
+        self.assertEqual(g["user"]["name"], "Sign in"); self.assertIn("href", g["alerts"][-1])
         self.client.post("/signup/", SIGNUP)
         u = User.objects.get(username="asha_r")
         m = hr.for_overview(u, self.SHARED)
-        self.assertEqual((m["user"]["name"], m["user"]["sensitivity"]), ("Asha Rao", "High"))
+        self.assertEqual((m["user"]["name"], m["user"]["sensitivity"]), ("asha_r", "High"))
         self.assertIn("Extra care while pregnant", [a["title"] for a in m["alerts"]])
 
     def test_api_returns_alerts_without_polluting_cache(self):
@@ -179,8 +233,8 @@ class OverviewIntegration(TestCase):
             member = self.client.get("/api/overview/", {"lat": 18.5, "lon": 73.8}).json()
             self.client.post("/logout/")
             guest = self.client.get("/api/overview/", {"lat": 18.5, "lon": 73.8}).json()
-        self.assertEqual(member["user"]["name"], "Asha Rao")
-        self.assertEqual(guest["user"]["name"], "Guest")             # no leak through the shared cache
+        self.assertEqual(member["user"]["name"], "asha_r")
+        self.assertEqual(guest["user"]["name"], "Sign in")             # no leak through the shared cache
 
 
 class GoogleFlowTests(TestCase):

@@ -9,43 +9,30 @@
   <link rel="stylesheet" href="{% static 'aerohealth/css/aerohealth.css' %}">
   <link rel="stylesheet" href="{% static 'aerohealth/css/accounts.css' %}">
   {% block head %}{% endblock %}
-  <link rel="stylesheet" href="{% static 'aerohealth/css/theme.css' %}">
 </head>
 <body>
   <header class="topbar">
     <a class="logo" href="/"><span class="logo-mark">≋</span> aerohealth</a>
-
-    <div class="search">
-      <span>🔍</span>
-      <input id="gsearch" type="search" placeholder="Search any city"
-             autocomplete="off" aria-label="Search any city">
-      <div id="gres" class="gres" hidden></div>
-    </div>
-
-    <button id="livebtn" class="livebtn" type="button" aria-pressed="false">
-      <i class="dot"></i>
-      <span>📍 Use live location</span>
-    </button>
-
+    <div class="search"><span>🔍</span><input id="gsearch" type="search" placeholder="Search any city" autocomplete="off" aria-label="Search any city">
+      <div id="gres" class="gres" hidden></div></div>
+    <button id="livebtn" class="livebtn" type="button" aria-pressed="false"><i class="dot"></i><span>📍 Use live location</span></button>
     <div class="header-tools">
-  <label class="lang-box" title="Select language">
-    <span aria-hidden="true">🌐</span>
-    <select id="langSelect" aria-label="Select language">
-      <option value="en">English</option>
-      <option value="mr">मराठी</option>
-      <option value="hi">हिंदी</option>
-    </select>
-  </label>
-</div>
-    <a class="who" href="{% if user.is_authenticated %}/account/{% else %}/login/{% endif %}">
-      <span class="bell">🔔</span>
-      <div class="avatar" id="avatar">
-        {% if user.is_authenticated %}{{ user.first_name|default:user.username|first|upper }}{% else %}G{% endif %}
-      </div>
-      <div>
-        <small>{% if user.is_authenticated %}Your personal forecast{% else %}Sign in to personalise{% endif %}</small>
-        <b id="username">{% if user.is_authenticated %}{{ user.first_name|default:user.username }}{% else %}Guest{% endif %}</b>
-      </div>
+      <label class="lang-box" title="Select language">
+        <span aria-hidden="true">🌐</span>
+        <select id="langSelect" aria-label="Select language">
+          <option value="en">English</option>
+          <option value="mr">मराठी</option>
+          <option value="hi">हिंदी</option>
+        </select>
+      </label>
+      <button id="themebtn" class="theme-toggle" type="button" title="Toggle dark mode" aria-label="Toggle dark mode" aria-pressed="false">
+        <svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.1A8.5 8.5 0 0 1 8.9 3.8 8.5 8.5 0 1 0 20.2 15.1Z"/></svg>
+        <svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+      </button>
+    </div>
+    <a class="who" href="{% if user.is_authenticated %}/account/{% else %}/login/{% endif %}"><span class="bell">🔔</span>
+      <div class="avatar" id="avatar">{% if user.is_authenticated %}{{ user.username|first|upper }}{% else %}S{% endif %}</div>
+      <div><small>{% if user.is_authenticated %}Your personal forecast{% else %}Sign in to personalise{% endif %}</small><b id="username">{% if user.is_authenticated %}{{ user.username }}{% else %}Sign in{% endif %}</b></div>
     </a>
   </header>
 
@@ -57,12 +44,9 @@
     <a href="/prediction/" class="{% if '/prediction' in request.path %}on{% endif %}">≋ Prediction</a>
     <a href="/account/" class="{% if '/account' in request.path %}on{% endif %}">☺ Account</a>
   </nav>
-
   <div id="google_translate_element" hidden></div>
-
   <script src="{% static 'aerohealth/js/location.js' %}"></script>
   <script src="{% static 'aerohealth/js/ui.js' %}"></script>
-  <script src="{% static 'aerohealth/js/motion.js' %}"></script>
   <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" defer></script>
   {% block scripts %}{% endblock %}
 </body>
