@@ -14,7 +14,7 @@
 
   let savedTheme = null;
   try { savedTheme = localStorage.getItem('aerohealth-theme'); } catch (error) {}
-  setTheme(savedTheme, false);
+  setTheme('light', false);   // light theme only
 
   if (themeButton) {
     themeButton.addEventListener('click', function () {
