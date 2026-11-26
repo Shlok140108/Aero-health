@@ -16,23 +16,46 @@ def hours(n_days):
 
 
 def forecast_fixture(code=2):
+    weatherapi_codes = {0: 1000, 1: 1003, 2: 1003, 3: 1009, 45: 1135, 48: 1147,
+                        51: 1150, 53: 1153, 55: 1171, 56: 1168, 57: 1171, 61: 1183,
+                        63: 1189, 65: 1195, 66: 1198, 67: 1201, 80: 1240, 81: 1243,
+                        82: 1246, 95: 1276}
+    weatherapi_code = weatherapi_codes.get(code, 1003)
+    condition = {"code": weatherapi_code, "text": "Partly cloudy", "icon": "//example.test/icon.png"}
     t = hours(7)
-    n = len(t)
+    hourly = []
+    for i, time in enumerate(t):
+        hourly.append({
+            "time": time.replace("T", " "),
+            "temp_c": 25 + (i % 24) / 3,
+            "chance_of_rain": 70 if i % 24 == 18 else 5,
+            "condition": condition,
+            "is_day": 1 if 6 <= i % 24 <= 18 else 0,
+            "vis_km": 10,
+            "dewpoint_c": 18.2,
+            "uv": 6.4,
+        })
+    forecastday = []
+    for i, date in enumerate(DAYS):
+        forecastday.append({
+            "date": date,
+            "day": {
+                "maxtemp_c": 32 + i, "mintemp_c": 20,
+                "daily_chance_of_rain": [10, 20, 30, 40, 50, 60, 70][i],
+                "totalprecip_mm": [0.0, None, 1.2, 0, 0, 0, 3.4][i],
+                "uv": 7.1, "condition": condition,
+            },
+            "astro": {"sunrise": "06:40 AM", "sunset": "06:05 PM"},
+            "hour": hourly[i * 24:(i + 1) * 24],
+        })
     return {
-        "timezone": "Asia/Kolkata",
-        "current": {"time": "2026-11-10T14:15", "temperature_2m": 31.4, "relative_humidity_2m": 52,
-                    "apparent_temperature": 33.0, "is_day": 1, "precipitation": 0.0, "weather_code": code,
-                    "cloud_cover": 40, "pressure_msl": 1009.6, "wind_speed_10m": 11.2,
-                    "wind_direction_10m": 250, "wind_gusts_10m": 22.0},
-        "hourly": {"time": t, "temperature_2m": [25 + (i % 24) / 3 for i in range(n)],
-                   "precipitation_probability": [70 if i % 24 == 18 else 5 for i in range(n)],
-                   "weather_code": [code] * n, "is_day": [1 if 6 <= i % 24 <= 18 else 0 for i in range(n)],
-                   "visibility": [10000] * n, "dew_point_2m": [18.2] * n, "uv_index": [6.4] * n},
-        "daily": {"time": DAYS, "weather_code": [code] * 7, "temperature_2m_max": [32 + d for d in range(7)],
-                  "temperature_2m_min": [20] * 7, "precipitation_probability_max": [10, 20, 30, 40, 50, 60, 70],
-                  "precipitation_sum": [0.0, None, 1.2, 0, 0, 0, 3.4],
-                  "sunrise": [f"{d}T06:40" for d in DAYS], "sunset": [f"{d}T18:05" for d in DAYS],
-                  "uv_index_max": [7.1] * 7},
+        "location": {"tz_id": "Asia/Kolkata"},
+        "current": {
+            "last_updated": "2026-11-10 14:15", "temp_c": 31.4, "feelslike_c": 33.0, "humidity": 52,
+            "is_day": 1, "precip_mm": 0.0, "condition": condition, "cloud": 40, "pressure_mb": 1009.6,
+            "wind_kph": 11.2, "wind_degree": 250, "gust_kph": 22.0,
+        },
+        "forecast": {"forecastday": forecastday},
     }
 
 
@@ -60,6 +83,10 @@ class Resp:
 def fake_get(url, params=None, **kw):
     if "air-quality-api" in url:
         return Resp(air_fixture(params.get("forecast_days", 2) if params and "hourly" in params else 2))
+    if "api.weatherapi.com" in url:
+        payload = forecast_fixture()
+        payload["forecast"]["forecastday"] = payload["forecast"]["forecastday"][:int(params.get("days", 3))]
+        return Resp(payload)
     if "geocoding-api" in url:
         return Resp({"results": [{"name": "Pune", "admin1": "Maharashtra", "country": "India",
                                   "latitude": 18.51957, "longitude": 73.85535}]})
@@ -71,6 +98,9 @@ def fake_get(url, params=None, **kw):
 class Base(TestCase):
     def setUp(self):
         cache.clear()
+        key_patch = mock.patch("django.conf.settings.WEATHER_API_KEY", "test-weather-key")
+        key_patch.start()
+        self.addCleanup(key_patch.stop)
         p = mock.patch("requests.get", side_effect=fake_get)
         self.get = p.start()
         self.addCleanup(p.stop)
@@ -102,14 +132,19 @@ class OverviewTests(Base):
         self.assertEqual(d["place"], "Pune")
         self.assertEqual(len(d["hourly"]), 8)
         self.assertEqual(len(d["curve"]), 12)
-        self.assertEqual(len(d["week"]), 7)
+        self.assertEqual(len(d["week"]), 3)
+        weather_call = next(call for call in self.get.call_args_list if "api.weatherapi.com" in call.args[0])
+        self.assertEqual(weather_call.kwargs["params"]["days"], 3)
+        self.assertEqual(weather_call.kwargs["params"]["key"], "test-weather-key")
         self.assertTrue(0 <= d["aqi"]["value"] <= 500)
         self.assertRegex(d["rain"], r"^\d+\.\d mm today$")
 
     def test_null_precip_sum_does_not_crash(self):
         # fixture has None in precipitation_sum[1]; today's value is fine, but make today's None too
-        f = forecast_fixture(); f["daily"]["precipitation_sum"][0] = None
-        with mock.patch("requests.get", side_effect=lambda u, params=None, **k: Resp(f) if "air-quality" not in u else fake_get(u, params)):
+        f = forecast_fixture(); f["forecast"]["forecastday"][0]["day"]["totalprecip_mm"] = None
+        with mock.patch("requests.get", side_effect=lambda u, params=None, **k:
+                        Resp({**f, "forecast": {"forecastday": f["forecast"]["forecastday"][:3]}})
+                        if "api.weatherapi.com" in u else fake_get(u, params)):
             r = self.client.get("/api/overview/", {"lat": 18.52, "lon": 73.85})
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(r.json()["rain"], "0.0 mm today")
@@ -123,13 +158,24 @@ class OverviewTests(Base):
         self.get.side_effect = requests.ConnectionError("down")
         self.assertEqual(self.client.get("/api/overview/", {"lat": 18.5, "lon": 73.8}).status_code, 502)
 
+    def test_overview_serves_last_successful_response_when_upstream_is_limited(self):
+        params = {"lat": 18.5, "lon": 73.8}
+        self.assertEqual(self.client.get("/api/overview/", params).status_code, 200)
+        cache.delete("overview:weatherapi:18.5:73.8")
+        self.get.side_effect = requests.HTTPError("429 Too Many Requests")
+
+        response = self.client.get("/api/overview/", params)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["stale"])
+
 
 class PredictionTests(Base):
     def test_prediction_ok(self):
         r = self.client.get("/api/prediction/", {"lat": 18.52, "lon": 73.85})
         self.assertEqual(r.status_code, 200, r.content)
         d = r.json()
-        self.assertEqual(len(d["days"]), 7)
+        self.assertEqual(len(d["days"]), 3)
         self.assertIsNotNone(d["days"][0]["aqi_max"])
         self.assertIn("band", d["advice"])
         self.assertIsNotNone(d["typical_temp_today"])
@@ -151,7 +197,7 @@ class LiveTests(Base):
         self.assertEqual(len(d["hourly"]), 24)
         self.assertEqual(d["hourly"][0]["label"], "Now")
         self.assertEqual(d["hourly"][1]["label"], "3 PM")         # current time is 14:15
-        self.assertEqual(len(d["daily"]), 7)
+        self.assertEqual(len(d["daily"]), 3)
         self.assertEqual(d["daily"][0]["day"], "Today")
         self.assertEqual(d["sun"], {"rise": "6:40 AM", "set": "6:05 PM"})
         self.assertEqual(d["aqi"]["us_aqi"], 151)
@@ -176,6 +222,43 @@ class LiveTests(Base):
         r = self.client.get("/api/live/", {"lat": 18.5, "lon": 73.8})
         self.assertEqual(r.status_code, 502)
         self.assertIn("unreachable", r.json()["error"])
+
+    def test_live_weather_serves_last_successful_response_when_upstream_is_limited(self):
+        params = {"lat": 18.5, "lon": 73.8}
+        self.assertEqual(self.client.get("/api/live/", params).status_code, 200)
+        cache.delete("live:weatherapi:18.5:73.8")
+        self.get.side_effect = requests.HTTPError("429 Too Many Requests")
+
+        response = self.client.get("/api/live/", params)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["stale"])
+
+    def test_weather_update_fetch_is_cached_for_15_minutes(self):
+        from .live import fetch_current_weather
+
+        payload = {
+            "current": {
+                "time": "2026-11-26T10:00",
+                "temperature_2m": 27,
+                "apparent_temperature": 28,
+                "relative_humidity_2m": 60,
+                "precipitation": 0,
+                "weather_code": 0,
+                "wind_speed_10m": 8,
+                "is_day": 1,
+            },
+            "hourly": {
+                "time": ["2026-11-26T10:00"],
+                "precipitation_probability": [5],
+            },
+        }
+        with mock.patch("dashboard.live._get_weather_forecast", return_value=payload) as get_weather:
+            first = fetch_current_weather(18.52, 73.85)
+            second = fetch_current_weather(18.52, 73.85)
+
+        self.assertEqual(first, second)
+        get_weather.assert_called_once()
 
     def test_validation(self):
         for q in ({"lat": "x", "lon": "1"}, {"lat": "inf", "lon": "1"}, {"lat": 91, "lon": 0}, {"lat": 0, "lon": 181}):
@@ -225,6 +308,12 @@ class PageTests(Base):
     def test_pages_render(self):
         for path in ("/", "/weather/", "/prediction/", "/account/", "/login/", "/signed-out/"):
             self.assertEqual(self.client.get(path).status_code, 200, path)
+
+    def test_header_language_and_theme_controls_and_dashboard_city_search(self):
+        html = self.client.get("/").content.decode()
+        for needle in ('id="langSelect"', 'id="themebtn"', 'id="gsearch"'):
+            self.assertIn(needle, html)
+        self.assertNotIn('id="city"', html)
 
     def test_weather_page_has_tracker_and_live_button(self):
         html = self.client.get("/weather/").content.decode()

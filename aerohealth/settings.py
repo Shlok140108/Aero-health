@@ -26,8 +26,8 @@ SECRET_KEY = os.environ.get(
 )
 DEBUG = os.environ.get("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = [".vercel.app", "localhost", "127.0.0.1","aero-health.onrender.com"]
-CSRF_TRUSTED_ORIGINS = ["https://*.vercel.app","https://aero-health.onrender.com"]
+ALLOWED_HOSTS = [".vercel.app", "localhost", "127.0.0.1"]
+CSRF_TRUSTED_ORIGINS = ["https://*.vercel.app"]
 
 
 # Application definition
@@ -95,6 +95,8 @@ DATABASES = {
     )
 }
 
+# A database-backed cache is shared across web workers and scheduled jobs.
+# Its table is created by the dashboard migration.
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.db.DatabaseCache",
@@ -103,6 +105,7 @@ CACHES = {
         "OPTIONS": {"MAX_ENTRIES": 10000},
     }
 }
+
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -168,13 +171,13 @@ ALERTS_TWILIO_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
 ALERTS_TWILIO_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
 ALERTS_TWILIO_FROM = os.environ.get("TWILIO_FROM_NUMBER", "")
 
-# Celery is optional for local development; periodic evaluation can also use the
-# `python manage.py evaluate_alerts` command from cron / a scheduler.
+# Celery is optional for local development; scheduled evaluation can also use
+# `python manage.py evaluate_alerts --send` from a cron / workflow scheduler.
 CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 CELERY_TIMEZONE = "Asia/Kolkata"
 CELERY_BEAT_SCHEDULE = {
-    "evaluate-aerohealth-alerts-every-15-minutes": {
+    "evaluate-aerohealth-alerts-every-5-minutes": {
         "task": "alerts.tasks.evaluate_alerts_task",
         "schedule": 300.0,
     },
@@ -183,3 +186,4 @@ ALERTS_TWILIO_WEBHOOK_URL = os.environ.get("ALERTS_TWILIO_WEBHOOK_URL", "")
 ALERTS_MAX_DATA_AGE_HOURS = int(os.environ.get("ALERTS_MAX_DATA_AGE_HOURS", "6"))
 ALERTS_GRID_MAX_AGE_HOURS = int(os.environ.get("ALERTS_GRID_MAX_AGE_HOURS", "12"))
 ALERTS_FORECAST_MAX_AGE_HOURS = int(os.environ.get("ALERTS_FORECAST_MAX_AGE_HOURS", "24"))
+WEATHER_API_KEY = os.environ.get("WEATHER_API_KEY", "")

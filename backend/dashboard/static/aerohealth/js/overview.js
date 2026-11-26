@@ -11,7 +11,7 @@ const SAMPLE = {
   weather:{temp:28,desc:'Partly cloudy',feels:30,hi:31,lo:23,wind:12,humidity:68,uv:'6 · High'},
   aqi:{value:88,source:'Live sensor',pm25:34,pm10:61,o3:32,no2:12,note:'A brief rise to 112 is predicted around 3 PM.'},
   hourly:[['Now',28,88,5],['10 AM',29,92,5],['11 AM',30,98,0],['12 PM',31,104,0],['1 PM',31,110,0],['2 PM',31,112,5],['3 PM',30,112,10],['4 PM',29,104,5]],
-  week:[['Today',23,31,5],['Wed',23,32,0],['Thu',22,30,40],['Fri',22,29,65],['Sat',22,28,70],['Sun',23,30,30],['Mon',23,31,10]],
+  week:[['Today',23,31,5],['Wed',23,32,0],['Thu',22,30,40]],
   curve:[88,92,104,112,108,96,84,78,76,80,86,88],
   sun:{rise:'6:04 AM',set:'6:52 PM'},rain:'0.0 mm today',
   outside:{window:'5–7 PM',text:'Cooler skies and easing particles line up for your evening walk.',aqi:78}
@@ -40,12 +40,11 @@ function render(d){
   $('username').textContent = d.user.name; $('avatar').textContent = first[0];
   $('greeting').textContent = `A brighter day starts here, ${first}.`;
   const dataNotice = d.demo
-  ? '<br><b style="color:#e07a2f">Sample data: API not reachable</b>'
-  : d.stale
-    ? '<br><b style="color:#e07a2f">Showing last saved weather; live API is temporarily unavailable.</b>'
-    : '';
-
-$('stamp').innerHTML =`${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}<br>${d.updated}${dataNotice}`;
+    ? '<br><b style="color:#e07a2f">Sample data: API not reachable</b>'
+    : d.stale
+      ? '<br><b style="color:#e07a2f">Showing last saved weather; live API is temporarily unavailable.</b>'
+      : '';
+  $('stamp').innerHTML = `${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}<br>${d.updated}${dataNotice}`;
 
   $('weather').innerHTML = `
     <div class="muted">📍 ${Aero.esc(d.place)}</div>
@@ -77,7 +76,7 @@ $('stamp').innerHTML =`${new Date().toLocaleDateString('en-IN',{weekday:'long',d
     <div class="row muted"><span>🌅 Sunrise <b>${d.sun.rise}</b></span><span>🌇 Sunset <b>${d.sun.set}</b></span><span>☔ ${d.rain}</span></div>`;
 
   const lo = Math.min(...d.week.map(w=>w[1])), hi = Math.max(...d.week.map(w=>w[2])), span = hi-lo||1;
-  $('week').innerHTML = `<div class="row"><h3>The week ahead</h3><span class="muted">7 days</span></div>` +
+  $('week').innerHTML = `<div class="row"><h3>Next 3 days</h3><span class="muted">3 days</span></div>` +
     d.week.map(w=>`<div class="week-row"><b>${w[0]}</b><span class="muted">${w[3]}%</span><span class="muted">${w[1]}°</span>
       <div class="bar"><i style="left:${(w[1]-lo)/span*100}%;right:${100-(w[2]-lo)/span*100}%"></i></div><b>${w[2]}°</b></div>`).join('');
 
@@ -97,7 +96,7 @@ $('stamp').innerHTML =`${new Date().toLocaleDateString('en-IN',{weekday:'long',d
     <a class="btn" href="/account/">Set a fresh-air reminder →</a>`;
 }
 
-// City dropdown + live location come from location.js; any location change re-fetches.
+// Search and live location come from location.js; any location change re-fetches.
 const refresh = () => load().then(render);
 refresh();
 Aero.onChange(refresh);

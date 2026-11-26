@@ -37,7 +37,7 @@ function renderWeather() {
     <b>${T(h.temp)}°</b><span class="rain">${h.rain >= 10 ? '💧' + h.rain + '%' : '&nbsp;'}</span></div>`).join('')}</div>`;
 
   const lo = Math.min(...data.daily.map(d => d.lo)), hi = Math.max(...data.daily.map(d => d.hi)), span = hi - lo || 1;
-  $('days').innerHTML = `<h3>7-day forecast</h3>` + data.daily.map(d => `
+  $('days').innerHTML = `<h3>3-day forecast</h3>` + data.daily.map(d => `
     <div class="drow"><b>${esc(d.day)}</b><span class="di" title="${esc(d.desc)}">${d.icon}</span>
       <span class="rain">${d.rain >= 10 ? '💧' + d.rain + '%' : ''}</span><span class="muted">${T(d.lo)}°</span>
       <div class="bar"><i style="left:${(d.lo - lo) / span * 100}%;right:${100 - (d.hi - lo) / span * 100}%"></i></div><b>${T(d.hi)}°</b></div>`).join('');

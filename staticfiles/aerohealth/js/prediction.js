@@ -20,12 +20,12 @@ function render(d){
   $('stamp').textContent = d.updated;
   const lo = Math.min(...d.days.map(x=>x.lo)), hi = Math.max(...d.days.map(x=>x.hi)), span = hi-lo||1;
 
-  $('wx').innerHTML = `<div class="row"><h3>Weather prediction</h3><span class="muted">7 days · ${Aero.esc(d.place)}</span></div>` +
+  $('wx').innerHTML = `<div class="row"><h3>Weather prediction</h3><span class="muted">3 days · ${Aero.esc(d.place)}</span></div>` +
     d.days.map(x=>`<div class="week-row"><b>${x.day}</b><span class="muted">💧${x.rain}%</span><span class="muted">${x.lo}°</span>
       <div class="bar"><i style="left:${(x.lo-lo)/span*100}%;right:${100-(x.hi-lo)/span*100}%"></i></div><b>${x.hi}°</b></div>`).join('') +
     (d.typical_temp_today!=null ? `<p class="muted" style="margin-top:10px">Our model's typical temperature for this date: ${d.typical_temp_today}°C</p>` : '');
 
-  $('aq').innerHTML = `<div class="row"><h3>AQI prediction</h3><span class="muted">CPCB scale · 5 days</span></div>` +
+  $('aq').innerHTML = `<div class="row"><h3>AQI prediction</h3><span class="muted">CPCB scale · 3 days</span></div>` +
     d.days.map(x=>{ if(x.aqi_avg==null) return `<div class="aq-row"><b>${x.day}</b><span class="muted">Not forecast yet</span></div>`;
       const k = cat(x.aqi_max);
       return `<div class="aq-row"><b>${x.day}</b><div class="bar"><i style="left:0;right:${100-x.aqi_max/500*100}%;background:${k[2]}"></i></div>

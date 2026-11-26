@@ -19,6 +19,7 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.ALERTS_DATABASE_URL }}
       SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+      WEATHER_API_KEY: ${{ secrets.WEATHER_API_KEY }}
       DEBUG: "False"
       ALERTS_DRY_RUN: "True"
 
@@ -31,6 +32,10 @@ jobs:
           fi
           if [ -z "$SECRET_KEY" ]; then
             echo "::error::Add the DJANGO_SECRET_KEY repository secret."
+            exit 1
+          fi
+          if [ -z "$WEATHER_API_KEY" ]; then
+            echo "::error::Add the WEATHER_API_KEY repository secret."
             exit 1
           fi
 

@@ -1,7 +1,7 @@
 """
 Place at: backend/dashboard/api.py
 Serves GET /api/overview/?lat=18.52&lon=73.86&place=Pune
-Weather + pollutant forecasts come from Open-Meteo; pollutants go through the trained AQI model.
+Weather forecasts come from WeatherAPI.com; pollutants come from Open-Meteo and go through the trained AQI model.
 """
 import json
 import math
@@ -19,7 +19,7 @@ from weather.ml_service import AQI_FEATURES, predict_aqi_batch, predict_temperat
 
 IST = ZoneInfo("Asia/Kolkata")
 NAN = float("nan")
-WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
+WEATHERAPI_URL = "https://api.weatherapi.com/v1/forecast.json"
 AIR_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 
 
@@ -27,6 +27,96 @@ def _get(url, params):
     r = requests.get(url, params=params, timeout=10)
     r.raise_for_status()
     return r.json()
+
+
+WEATHERAPI_TO_WMO = {
+    1000: 0, 1003: 2, 1006: 3, 1009: 3,
+    1012: 45, 1015: 45, 1018: 45, 1021: 45, 1024: 45, 1027: 45,
+    1030: 45, 1033: 45, 1036: 45, 1039: 45, 1042: 45, 1045: 45, 1048: 45,
+    1063: 61, 1066: 71, 1069: 61, 1072: 56, 1087: 95,
+    1114: 71, 1117: 75, 1135: 45, 1147: 48, 1150: 51, 1153: 53,
+    1168: 56, 1171: 57, 1180: 61, 1183: 61, 1186: 63, 1189: 63,
+    1192: 65, 1195: 65, 1198: 66, 1201: 67, 1204: 66, 1207: 67,
+    1210: 71, 1213: 73, 1216: 73, 1219: 75, 1222: 75, 1225: 75, 1237: 77,
+    1240: 80, 1243: 81, 1246: 82, 1249: 80, 1252: 81, 1255: 85, 1258: 86,
+    1261: 85, 1264: 86, 1273: 95, 1276: 95, 1279: 95, 1282: 95,
+}
+
+
+def _weatherapi_time(value):
+    return value.replace(" ", "T", 1)
+
+
+def _weatherapi_clock(date, value):
+    t = datetime.strptime(value, "%I:%M %p")
+    return f"{date}T{t.hour:02d}:{t.minute:02d}"
+
+
+def _weatherapi_to_open_meteo(raw):
+    """Normalize WeatherAPI's forecast response to the fields used by the dashboard."""
+    current = raw["current"]
+    forecast_days = raw["forecast"]["forecastday"]
+
+    def code(condition):
+        return WEATHERAPI_TO_WMO.get(condition["code"], 3)
+
+    hourly = [hour for day in forecast_days for hour in day["hour"]]
+    return {
+        "timezone": raw["location"]["tz_id"],
+        "current": {
+            "time": _weatherapi_time(current["last_updated"]),
+            "temperature_2m": current["temp_c"],
+            "apparent_temperature": current["feelslike_c"],
+            "relative_humidity_2m": current["humidity"],
+            "precipitation": current["precip_mm"],
+            "weather_code": code(current["condition"]),
+            "wind_speed_10m": current["wind_kph"],
+            "wind_direction_10m": current["wind_degree"],
+            "wind_gusts_10m": current["gust_kph"],
+            "pressure_msl": current["pressure_mb"],
+            "cloud_cover": current["cloud"],
+            "is_day": current["is_day"],
+        },
+        "hourly": {
+            "time": [_weatherapi_time(hour["time"]) for hour in hourly],
+            "temperature_2m": [hour["temp_c"] for hour in hourly],
+            "precipitation_probability": [hour["chance_of_rain"] for hour in hourly],
+            "weather_code": [code(hour["condition"]) for hour in hourly],
+            "is_day": [hour["is_day"] for hour in hourly],
+            "visibility": [hour["vis_km"] * 1000 for hour in hourly],
+            "dew_point_2m": [hour["dewpoint_c"] for hour in hourly],
+            "uv_index": [hour["uv"] for hour in hourly],
+        },
+        "daily": {
+            "time": [day["date"] for day in forecast_days],
+            "weather_code": [code(day["day"]["condition"]) for day in forecast_days],
+            "temperature_2m_max": [day["day"]["maxtemp_c"] for day in forecast_days],
+            "temperature_2m_min": [day["day"]["mintemp_c"] for day in forecast_days],
+            "precipitation_probability_max": [day["day"]["daily_chance_of_rain"] for day in forecast_days],
+            "precipitation_sum": [day["day"]["totalprecip_mm"] for day in forecast_days],
+            "sunrise": [_weatherapi_clock(day["date"], day["astro"]["sunrise"]) for day in forecast_days],
+            "sunset": [_weatherapi_clock(day["date"], day["astro"]["sunset"]) for day in forecast_days],
+            "uv_index_max": [day["day"]["uv"] for day in forecast_days],
+        },
+    }
+
+
+def _get_weather_forecast(lat, lon, days=7):
+    api_key = getattr(settings, "WEATHER_API_KEY", "")
+    if not api_key:
+        raise RuntimeError("WEATHER_API_KEY is not configured")
+    try:
+        raw = _get(WEATHERAPI_URL, {
+            "key": api_key, "q": f"{lat},{lon}", "days": days, "aqi": "no", "alerts": "no",
+        })
+    except requests.RequestException as exc:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        detail = f" (HTTP {status})" if status else ""
+        raise RuntimeError(f"WeatherAPI request failed{detail}") from exc
+    if "error" in raw:
+        error = raw["error"]
+        raise RuntimeError(f"WeatherAPI error {error.get('code', 'unknown')}: {error.get('message', 'request failed')}")
+    return _weatherapi_to_open_meteo(raw)
 
 
 def _n(x):
@@ -106,12 +196,7 @@ def _aqi_series(air, indices, lat, lon):
 
 
 def build(lat, lon):
-    w = _get(WEATHER_URL, {
-        "latitude": lat, "longitude": lon, "timezone": "Asia/Kolkata", "forecast_days": 7,
-        "current": "temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code",
-        "hourly": "temperature_2m,precipitation_probability,uv_index",
-        "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,sunrise,sunset",
-    })
+    w = _get_weather_forecast(lat, lon, 3)
     air = _get(AIR_URL, {
         "latitude": lat, "longitude": lon, "timezone": "Asia/Kolkata", "forecast_days": 2,
         "hourly": "pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone",
@@ -161,7 +246,7 @@ def build(lat, lon):
                    for k in range(8)],
         "week": [["Today" if i == 0 else datetime.fromisoformat(dw["time"][i]).strftime("%a"),
                   round(dw["temperature_2m_min"][i]), round(dw["temperature_2m_max"][i]),
-                  dw["precipitation_probability_max"][i] or 0] for i in range(7)],
+                  dw["precipitation_probability_max"][i] or 0] for i in range(len(dw["time"]))],
         "curve": aqi[::2],
         "sun": {"rise": _hm(datetime.fromisoformat(dw["sunrise"][0])), "set": _hm(datetime.fromisoformat(dw["sunset"][0]))},
         "rain": f"{(dw['precipitation_sum'][0] or 0):.1f} mm today",
@@ -178,12 +263,10 @@ def overview_api(request):
         lat, lon = parse_coords(request, india_only=True)
     except ValueError as e:
         return JsonResponse({"error": str(e)}, status=400)
-
-    key = f"overview:{lat}:{lon}"
+    key = f"overview:weatherapi:{lat}:{lon}"
     stale_key = f"{key}:stale"
     data = cache.get(key)
     stale = False
-
     if data is None:
         try:
             data = build(lat, lon)
@@ -195,11 +278,10 @@ def overview_api(request):
         else:
             cache.set(key, data, 600)
             cache.set(stale_key, data, 86400)
-
     payload = dict(data, place=request.GET.get("place", "Delhi"))
     if stale:
         payload["stale"] = True
-    payload.update(for_overview(request.user, payload))
+    payload.update(for_overview(request.user, payload))     # per-user part: never put this in the shared cache
     return JsonResponse(payload)
 
 
@@ -259,14 +341,13 @@ def _advice(aqi_max, hi, rain, uv):
 
 
 def build_prediction(lat, lon):
-    w = _get(WEATHER_URL, {"latitude": lat, "longitude": lon, "timezone": "Asia/Kolkata", "forecast_days": 7,
-        "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,uv_index_max"})
+    w = _get_weather_forecast(lat, lon, 3)
     air = _get(AIR_URL, {"latitude": lat, "longitude": lon, "timezone": "Asia/Kolkata", "forecast_days": 5,
         "hourly": "pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone"})
     d = w["daily"]
     air_days = len(air["hourly"]["time"]) // 24
     days = []
-    for i in range(7):
+    for i in range(len(d["time"])):
         vals = []
         if i < air_days:
             vals = [v for v in _aqi_series(air, [i * 24 + hr for hr in range(0, 24, 3)], lat, lon)
@@ -293,7 +374,7 @@ def prediction_api(request):
         lat, lon = parse_coords(request, india_only=True)
     except ValueError as e:
         return JsonResponse({"error": str(e)}, status=400)
-    key = f"prediction:{lat}:{lon}"
+    key = f"prediction:weatherapi:{lat}:{lon}"
     data = cache.get(key)
     if data is None:
         try:

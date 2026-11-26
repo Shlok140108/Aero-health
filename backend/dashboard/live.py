@@ -1,12 +1,11 @@
 """
 Live weather endpoints for the conventional weather-app page and the live location tracker.
 
-  GET /api/live/?lat=&lon=      current conditions + 24h + 7 days + details + AQI (worldwide)
+  GET /api/live/?lat=&lon=      current conditions + 24h + 3 days + details + AQI (worldwide)
   GET /api/geocode/?q=Pune      city search (Open-Meteo geocoding)
   GET /api/reverse/?lat=&lon=   coordinates -> place name (OpenStreetMap Nominatim)
 
-All upstream hosts are fixed (no user-supplied URLs). Responses are cached briefly so
-a moving user does not hammer the free upstream APIs.
+All upstream hosts are fixed (no user-supplied URLs). Responses are cached briefly so a moving user does not hammer upstream APIs.
 """
 from datetime import datetime, timezone
 
@@ -14,17 +13,17 @@ import requests
 from django.core.cache import cache
 from django.http import JsonResponse
 
-from .api import AIR_URL, WEATHER_URL, _get, in_india, parse_coords
+from .api import AIR_URL, _get, _get_weather_forecast, in_india, parse_coords
 from weather.ml_service import AQI_FEATURES, predict_aqi_batch
 
 GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
 REVERSE_URL = "https://nominatim.openstreetmap.org/reverse"
 USER_AGENT = "AeroHealth/1.0 (student project; local development)"   # Nominatim policy requires one
 
-LIVE_TTL = 300
+LIVE_TTL = 300          # Open-Meteo "current" refreshes every 15 min; 5 min cache keeps it feeling live
 WEATHER_UPDATE_TTL = 900
 WEATHER_UPDATE_STALE_TTL = 3600
-STALE_TTL = 86400          # Open-Meteo "current" refreshes every 15 min; 5 min cache keeps it feeling live
+STALE_TTL = 86400
 NAN = float("nan")
 
 # WMO weather code -> (label, day icon, night icon)
@@ -57,31 +56,18 @@ def _round(v, nd=0):
 def fetch_current_weather(lat, lon):
     """Fetch current weather fields needed for periodic push summaries."""
     lat, lon = round(lat, 2), round(lon, 2)
-    key = f"weather-update:{lat}:{lon}"
+    key = f"weatherapi:weather-update:{lat}:{lon}"
     stale_key = f"{key}:stale"
-
     cached = cache.get(key)
     if cached is not None:
         return cached
-
     try:
-        data = _get(WEATHER_URL, {
-            "latitude": lat,
-            "longitude": lon,
-            "timezone": "auto",
-            "wind_speed_unit": "kmh",
-            "current": (
-                "temperature_2m,apparent_temperature,relative_humidity_2m,"
-                "precipitation,weather_code,wind_speed_10m,is_day"
-            ),
-            "hourly": "precipitation_probability",
-        })
-    except requests.RequestException:
+        data = _get_weather_forecast(lat, lon, 1)
+    except (requests.RequestException, RuntimeError):
         stale = cache.get(stale_key)
         if stale is not None:
             return stale
         raise
-
     current, hourly = data["current"], data["hourly"]
     observed_at = current["time"]
     hour_index = next(
@@ -102,6 +88,7 @@ def fetch_current_weather(lat, lon):
     cache.set(key, result, WEATHER_UPDATE_TTL)
     cache.set(stale_key, result, WEATHER_UPDATE_STALE_TTL)
     return result
+
 
 def _theme(code, is_day):
     """Background theme key for the hero card."""
@@ -156,14 +143,7 @@ def _fetch_aqi(lat, lon):
 
 
 def build_live(lat, lon):
-    w = _get(WEATHER_URL, {
-        "latitude": lat, "longitude": lon, "timezone": "auto", "forecast_days": 7, "wind_speed_unit": "kmh",
-        "current": ("temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,"
-                    "cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m"),
-        "hourly": "temperature_2m,precipitation_probability,weather_code,is_day,visibility,dew_point_2m,uv_index",
-        "daily": ("weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,"
-                  "precipitation_sum,sunrise,sunset,uv_index_max"),
-    })
+    w = _get_weather_forecast(lat, lon, 3)
     cur, hw, dw = w["current"], w["hourly"], w["daily"]
     is_day = cur.get("is_day", 1)
     label, icon = wmo(cur["weather_code"], is_day)
@@ -214,40 +194,31 @@ def build_live(lat, lon):
 
 
 def live_api(request):
-    """GET /api/live/?lat=&lon= (any location on Earth)."""
+    """GET /api/live/?lat=&lon=  (any location on Earth)"""
     try:
         lat, lon = parse_coords(request)
     except ValueError as e:
         return JsonResponse({"error": str(e)}, status=400)
-
-    key = f"live:{lat}:{lon}"
+    key = f"live:weatherapi:{lat}:{lon}"
     stale_key = f"{key}:stale"
     data = cache.get(key)
     stale = False
-
     if data is None:
         try:
             data = build_live(lat, lon)
-        except requests.RequestException:
+        except (requests.RequestException, RuntimeError):
             data = cache.get(stale_key)
             if data is None:
-                return JsonResponse(
-                    {"error": "Weather service is unreachable right now. Try again shortly."},
-                    status=502,
-                )
+                return JsonResponse({"error": "Weather service is unreachable right now. Try again shortly."}, status=502)
             stale = True
         except Exception as e:
             data = cache.get(stale_key)
             if data is None:
-                return JsonResponse(
-                    {"error": f"Could not build the forecast: {e}"},
-                    status=502,
-                )
+                return JsonResponse({"error": f"Could not build the forecast: {e}"}, status=502)
             stale = True
         else:
             cache.set(key, data, LIVE_TTL)
             cache.set(stale_key, data, STALE_TTL)
-
     if stale:
         data = dict(data, stale=True)
     return JsonResponse(data)
