@@ -6,6 +6,7 @@ class AlertSettingsSerializer(serializers.Serializer):
     alert_language=serializers.ChoiceField(choices=["en","hi","mr","ta","bn"],required=False)
     guidance_sensitivity=serializers.ChoiceField(choices=["standard","sensitive","high"],required=False)
     alerts_enabled=serializers.BooleanField(required=False)
+    weather_updates_enabled=serializers.BooleanField(required=False)
     consent=serializers.BooleanField(write_only=True,required=False)
     push_enabled=serializers.BooleanField(required=False)
     fcm_token=serializers.CharField(max_length=500,allow_blank=True,required=False)
@@ -25,6 +26,10 @@ class AlertSettingsSerializer(serializers.Serializer):
         if bool(start)!=bool(end): raise serializers.ValidationError("Set both quiet hours or neither.")
         if attrs.get("alerts_enabled") and profile and not (profile.lat is not None and profile.lon is not None):
             raise serializers.ValidationError("Set your home location in Account before enabling alerts.")
+        if attrs.get("weather_updates_enabled") and profile and not (profile.lat is not None and profile.lon is not None):
+            raise serializers.ValidationError("Set your home location in Account before enabling weather updates.")
+        if attrs.get("weather_updates_enabled") and profile and not profile.kyc_data.get("location_consent"):
+            raise serializers.ValidationError({"weather_updates_enabled":"Enable location consent in Account before weather updates."})
         if attrs.get("push_enabled") and not attrs.get("fcm_token",getattr(profile,"fcm_token","")):
             raise serializers.ValidationError({"fcm_token":"Register a device token or disable push notifications."})
         if (attrs.get("notify_sms",getattr(profile,"notify_sms",False)) or attrs.get("voice_enabled",getattr(profile,"voice_enabled",False))) and not getattr(profile,"phone",""):

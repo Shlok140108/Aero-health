@@ -75,7 +75,7 @@ def block_reason(profile, decision, now, location_label):
         t=_local(profile,now).time(); start,end=profile.quiet_start,profile.quiet_end
         quiet=(start <= t < end) if start < end else (t >= start or t < end)
         if quiet: return "quiet_hours"
-    logs=AlertLog.objects.filter(profile=profile, status__in=["sent","dry_run"])
+    logs=AlertLog.objects.filter(profile=profile, status__in=["sent","dry_run"]).exclude(alert_type=AlertLog.WEATHER_UPDATE)
     day_start=_local(profile,now).replace(hour=0,minute=0,second=0,microsecond=0)
     if logs.filter(created_at__gte=day_start).aggregate(n=Count("event_id",distinct=True))["n"] >= profile.max_alerts_per_day: return "daily_cap"
     same=logs.filter(alert_type=decision.alert_type,location_label=location_label)

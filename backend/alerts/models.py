@@ -29,6 +29,7 @@ class AlertRule(models.Model):
 
 class AlertLog(models.Model):
     SENT, DRY_RUN, FAILED = "sent", "dry_run", "failed"
+    WEATHER_UPDATE = "weather_update"
     STATUS = [(SENT, "Sent"), (DRY_RUN, "Dry run"), (FAILED, "Failed")]
     profile = models.ForeignKey("accounts.UserProfile", on_delete=models.CASCADE, related_name="alert_logs")
     rule = models.ForeignKey(AlertRule, null=True, blank=True, on_delete=models.SET_NULL, related_name="logs")

@@ -168,7 +168,7 @@ CELERY_TIMEZONE = "Asia/Kolkata"
 CELERY_BEAT_SCHEDULE = {
     "evaluate-aerohealth-alerts-every-15-minutes": {
         "task": "alerts.tasks.evaluate_alerts_task",
-        "schedule": 900.0,
+        "schedule": 300.0,
     },
 }
 ALERTS_TWILIO_WEBHOOK_URL = os.environ.get("ALERTS_TWILIO_WEBHOOK_URL", "")

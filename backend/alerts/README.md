@@ -8,6 +8,7 @@ This app is integrated with the existing `accounts.UserProfile`; it does **not**
 - Forecast alerts first use existing `weather.AQIForecast` rows (including `confidence_lower` / `confidence_upper`). If there are no nearby stored rows, they use the existing `dashboard.api.build_prediction()` daily AQI estimates for the next 72 hours.
 - Persona is derived from the existing account profile fields (`conditions`, age, occupation and outdoor hours). The alerts app does not store diagnoses separately.
 - User language (English, Hindi, Marathi, Tamil, Bengali), guidance sensitivity, explicit consent, channels, quiet hours and daily limits live on `accounts.UserProfile`.
+- Users can separately opt in on their Account page to receive current-weather push summaries every five minutes. This can produce up to 288 messages per day, even when readings repeat; it requires location consent, coordinates, browser push permission and a registered FCM token. Weather summaries use Open-Meteo and do not count against the daily AQI-alert limit.
 - Saved locations, alert rules, alert logs, organization membership and alert state are stored in this app.
 - FCM push and Twilio SMS/voice are optional provider integrations. No provider sends until the operator disables dry-run and configures credentials. SMS/voice also require verified phone ownership. The browser still needs to register an FCM device token through the settings API before push can be delivered.
 - Twilio inbound STOP webhook disables SMS and voice for the matching phone number after signature validation.
@@ -30,6 +31,7 @@ Settings PATCH example (consent is explicit):
 {
   "consent": true,
   "alerts_enabled": true,
+  "weather_updates_enabled": false,
   "alert_language": "en",
   "guidance_sensitivity": "sensitive",
   "push_enabled": false,
@@ -50,12 +52,14 @@ python manage.py evaluate_alerts             # dry-run, safe default
 python manage.py evaluate_alerts --send      # live delivery; only after provider setup
 ```
 
-For scheduled evaluation, configure Redis and run:
+For scheduled evaluation, the repository's GitHub Actions workflow runs every five minutes. It can also be run with Celery by configuring Redis and:
 
 ```bash
 celery -A aerohealth worker --loglevel=info
 celery -A aerohealth beat --loglevel=info
 ```
+
+Use only one scheduler in production; running GitHub Actions and Celery Beat together can send duplicate notifications.
 
 ## Provider environment variables
 

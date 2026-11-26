@@ -87,6 +87,8 @@ def account(request):
         kyc["basic_only"] = basic_only
         kyc["health_consent"] = health_ok
         kyc["location_consent"] = location_ok
+        if not location_ok:
+            profile.weather_updates_enabled = False
         if not health_ok:
             for key in ("pregnant", "trimester", "pregnancy_complications", "health_conditions", "sensitivities", "medication", "smoking"):
                 kyc.pop(key, None)
@@ -97,7 +99,10 @@ def account(request):
         with transaction.atomic():
             profile.kyc_data = kyc
             profile.kyc_completed = bool(kyc.get("display_name") and kyc.get("age_group") and kyc.get("home_area"))
-            profile.save(update_fields=["kyc_data", "kyc_completed", "updated_at"])
+            update_fields = ["kyc_data", "kyc_completed", "updated_at"]
+            if not location_ok:
+                update_fields.append("weather_updates_enabled")
+            profile.save(update_fields=update_fields)
         return redirect(reverse("account") + "?saved=1")
     from alerts.personas import ensure_default_rules, sensitivity_threshold
     ensure_default_rules(profile)

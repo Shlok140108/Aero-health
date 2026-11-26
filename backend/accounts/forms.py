@@ -175,6 +175,8 @@ class ProfileForm(HealthProfileForm):
         data = super().clean()
         if data.get("alerts_enabled") and not data.get("alerts_consent") and not self.instance.alerts_consent_at:
             self.add_error("alerts_consent", "Consent is required before enabling alerts.")
+        if self.data.get("weather_updates_enabled") == "yes" and (data.get("lat") is None or data.get("lon") is None):
+            self.add_error("city", "Choose a location with coordinates before enabling weather updates.")
         if data.get("alerts_enabled") and (data.get("lat") is None or data.get("lon") is None):
             self.add_error("alerts_enabled", "Set your current location before enabling alerts.")
         return data
@@ -184,6 +186,7 @@ class ProfileForm(HealthProfileForm):
         profile = super().save(commit=False)
         for field_name in ("alert_language", "guidance_sensitivity", "alerts_enabled"):
             setattr(profile, field_name, self.cleaned_data[field_name])
+        profile.weather_updates_enabled = self.data.get("weather_updates_enabled") == "yes"
         if self.cleaned_data.get("alerts_consent"):
             if not profile.alerts_consent_at:
                 from django.utils import timezone

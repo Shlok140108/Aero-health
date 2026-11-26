@@ -113,15 +113,48 @@ class LoginAccountTests(TestCase):
 
     def test_account_edit_updates_profile_and_alerts(self):
         self.client.login(username="asha_r", password="Tr1cky-Pass-93")
-        r = self.client.post("/account/", dict(SIGNUP, full_name="Asha R.", conditions=["none"], pregnancy_status="no", trimester=""))
+        r = self.client.post("/account/", dict(SIGNUP, full_name="Asha R.", conditions=["none"], pregnancy_status="no",
+                                               trimester="", alert_language="en", guidance_sensitivity="standard"))
         self.assertEqual(r.status_code, 302, getattr(r, "context", None) and r.context["form"].errors)
         u = User.objects.get(username="asha_r")
         self.assertEqual((u.first_name, u.profile.conditions, u.profile.pregnancy_status), ("Asha R.", [], "no"))
 
     def test_account_edit_keeps_own_email(self):
         self.client.login(username="asha_r", password="Tr1cky-Pass-93")
-        r = self.client.post("/account/", SIGNUP)
+        r = self.client.post("/account/", dict(SIGNUP, alert_language="en", guidance_sensitivity="standard"))
         self.assertEqual(r.status_code, 302)
+
+    def test_weather_updates_require_and_follow_location_consent(self):
+        self.client.login(username="asha_r", password="Tr1cky-Pass-93")
+        account_data = dict(
+            SIGNUP,
+            alert_language="en",
+            guidance_sensitivity="standard",
+            weather_updates_enabled="yes",
+            kyc_location_consent="yes",
+            kyc_display_name="Asha",
+            kyc_age_group="18_30",
+            kyc_home_area="Pune",
+        )
+        response = self.client.post("/account/", account_data)
+        self.assertEqual(response.status_code, 302)
+        profile = UserProfile.objects.get(user__username="asha_r")
+        self.assertTrue(profile.weather_updates_enabled)
+        self.assertTrue(profile.kyc_data["location_consent"])
+
+        account_data.pop("kyc_location_consent")
+        response = self.client.post("/account/", account_data)
+        self.assertEqual(response.status_code, 302)
+        profile.refresh_from_db()
+        self.assertFalse(profile.weather_updates_enabled)
+        self.assertFalse(profile.kyc_data["location_consent"])
+
+    def test_account_page_has_csrf_protected_logout_button(self):
+        self.client.login(username="asha_r", password="Tr1cky-Pass-93")
+        html = self.client.get("/account/").content.decode()
+        self.assertIn('<button type="submit" form="logout-form" class="save kyc-logout-button">Log out</button>', html)
+        self.assertIn('<form id="logout-form" method="post" action="/logout/" hidden>', html)
+        self.assertIn('name="csrfmiddlewaretoken"', html)
 
 
 class OverviewIntegration(TestCase):

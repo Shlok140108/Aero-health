@@ -9,10 +9,35 @@ COPY = {
 "ta": {"current_aqi": ("காற்றுத் தர எச்சரிக்கை", "{place}: AQI {aqi} ({category}){source_note}. {advice}"), "forecast_aqi": ("காற்றுத் தர முன்னறிவிப்பு", "{place} அருகே சுமார் {hours} மணிநேரத்தில் AQI {aqi} ({category}) ஆகலாம். {advice}"), "smoke_arrival": ("புகை செயல்பாட்டு எச்சரிக்கை", "{place} பகுதியில் {radius} கிமீக்குள் தீ தொடர்பான புகை இருக்கலாம். உள்ளூர் காற்றுத் தரத்தைக் கவனிக்கவும்."), "stagnation": ("மாசு நீடிக்கலாம்", "{place}: AQI {aqi}; குறைந்த காற்றோட்டத்தால் மாசு நீடிக்கலாம். {advice}"), "all_clear": ("காற்றுத் தரம் மேம்பட்டது", "{place} பகுதியில் AQI உங்கள் எச்சரிக்கை வரம்புக்குக் கீழே உள்ளது.")},
 "bn": {"current_aqi": ("বায়ুর মান সতর্কতা", "{place}: AQI {aqi} ({category}){source_note}. {advice}"), "forecast_aqi": ("বায়ুর মান পূর্বাভাস", "{place}-এর কাছে প্রায় {hours} ঘণ্টায় AQI {aqi} ({category}) হতে পারে। {advice}"), "smoke_arrival": ("ধোঁয়ার কার্যকলাপ সতর্কতা", "{place} এলাকার {radius} কিমির মধ্যে আগুন-সম্পর্কিত ধোঁয়া থাকতে পারে। স্থানীয় বায়ুর মান লক্ষ্য করুন।"), "stagnation": ("দূষণ জমে থাকতে পারে", "{place}: AQI {aqi}; কম বায়ু চলাচলে দূষণ থাকতে পারে। {advice}"), "all_clear": ("বায়ুর মানের উন্নতি", "{place}-এ AQI আপনার সতর্কতার সীমার নিচে নেমেছে।")}}
 
+WEATHER_UPDATE_COPY = {
+    "en": ("Weather update · {place}", "As of {time}: {description}, {temperature}°C (feels like {feels_like}°C), humidity {humidity}%, wind {wind_kmh} km/h, rain chance {rain_chance}%."),
+    "hi": ("मौसम अपडेट · {place}", "{time} की स्थिति: {description}, तापमान {temperature}°C (महसूस {feels_like}°C), नमी {humidity}%, हवा {wind_kmh} km/h, बारिश की संभावना {rain_chance}%."),
+    "mr": ("हवामान अपडेट · {place}", "{time} ची स्थिती: {description}, तापमान {temperature}°C (जाणवणारे {feels_like}°C), आर्द्रता {humidity}%, वारा {wind_kmh} km/h, पावसाची शक्यता {rain_chance}%."),
+    "ta": ("வானிலை அறிவிப்பு · {place}", "{time} நிலவரம்: {description}, வெப்பநிலை {temperature}°C (உணர்வு {feels_like}°C), ஈரப்பதம் {humidity}%, காற்று {wind_kmh} km/h, மழை வாய்ப்பு {rain_chance}%."),
+    "bn": ("আবহাওয়ার আপডেট · {place}", "{time}-এর অবস্থা: {description}, তাপমাত্রা {temperature}°C (অনুভূত {feels_like}°C), আর্দ্রতা {humidity}%, বাতাস {wind_kmh} km/h, বৃষ্টির সম্ভাবনা {rain_chance}%."),
+}
+
 @dataclass
 class Rendered:
     title: str
     body: str
+
+
+def render_weather_update(profile, weather, place):
+    language = profile.alert_language if profile.alert_language in WEATHER_UPDATE_COPY else "en"
+    title, body = WEATHER_UPDATE_COPY[language]
+    values = {
+        "place": place,
+        "time": weather["observed_at"].split("T")[-1][:5],
+        "description": weather["description"],
+        "temperature": weather["temperature"] if weather["temperature"] is not None else "—",
+        "feels_like": weather["feels_like"] if weather["feels_like"] is not None else "—",
+        "humidity": weather["humidity"] if weather["humidity"] is not None else "—",
+        "wind_kmh": weather["wind_kmh"] if weather["wind_kmh"] is not None else "—",
+        "rain_chance": weather["rain_chance"] if weather["rain_chance"] is not None else "—",
+    }
+    return Rendered(title.format_map(values), body.format_map(values))
+
 
 def render(profile, decision, channel):
     lang=profile.alert_language if profile.alert_language in COPY else "en"

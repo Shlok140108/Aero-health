@@ -79,6 +79,7 @@ class UserProfile(models.Model):
     alert_language = models.CharField(max_length=5, choices=[("en", "English"), ("hi", "Hindi"), ("mr", "Marathi"), ("ta", "Tamil"), ("bn", "Bengali")], default="en")
     guidance_sensitivity = models.CharField(max_length=12, choices=[("standard", "Standard"), ("sensitive", "Sensitive"), ("high", "Highly sensitive")], default="standard")
     alerts_enabled = models.BooleanField(default=False)
+    weather_updates_enabled = models.BooleanField(default=False)
     alerts_consent_at = models.DateTimeField(null=True, blank=True)
     push_enabled = models.BooleanField(default=False)
     fcm_token = models.CharField(max_length=500, blank=True)

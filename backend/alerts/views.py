@@ -29,7 +29,8 @@ class SettingsView(APIView):
         p=get_profile(request)
         if not p: return Response({"error":"Complete your account profile first."},status=404)
         ensure_default_rules(p)
-        return Response({"alerts_enabled":p.alerts_enabled,"consent":bool(p.alerts_consent_at),"language":p.alert_language,
+        return Response({"alerts_enabled":p.alerts_enabled,"weather_updates_enabled":p.weather_updates_enabled,
+            "consent":bool(p.alerts_consent_at),"language":p.alert_language,
             "persona":persona_for_profile(p),"guidance_sensitivity":p.guidance_sensitivity,"push_enabled":p.push_enabled,
             "push_token_registered":bool(p.fcm_token),"sms_enabled":p.notify_sms,"voice_enabled":p.voice_enabled,
             "phone_verified":bool(p.phone_verified_at),"quiet_start":p.quiet_start,"quiet_end":p.quiet_end,
@@ -42,7 +43,7 @@ class SettingsView(APIView):
         for key,value in data.items(): setattr(p,key,value)
         if consent_supplied and consent and not p.alerts_consent_at: p.alerts_consent_at=timezone.now()
         if consent_supplied and not consent:
-            p.alerts_enabled=False; p.alerts_consent_at=None
+            p.alerts_enabled=False; p.weather_updates_enabled=False; p.alerts_consent_at=None
             p.push_enabled=False; p.notify_sms=False; p.voice_enabled=False
         p.save()
         ensure_default_rules(p)

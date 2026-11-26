@@ -69,6 +69,7 @@
       <fieldset><legend>Which alerts would you like? (multiple choice)</legend><div class="kyc-checks"><label><input type="checkbox" name="kyc_alert_types" value="AQI"> Air quality (AQI)</label><label><input type="checkbox" name="kyc_alert_types" value="Heat"> Heat</label><label><input type="checkbox" name="kyc_alert_types" value="Rain"> Rain</label><label><input type="checkbox" name="kyc_alert_types" value="UV index"> UV index</label><label><input type="checkbox" name="kyc_alert_types" value="Pollen"> Pollen</label><label><input type="checkbox" name="kyc_alert_types" value="Cold"> Cold</label><label><input type="checkbox" name="kyc_alert_types" value="Daily health tips"> Daily health tips</label></div></fieldset>
       <label>At what AQI level should we alert you?<select class="field" name="kyc_aqi_threshold"><option value="">Use recommended default</option><option>Moderate and above</option><option>Unhealthy for sensitive groups and above</option><option>Unhealthy and above</option><option>Hazardous only</option></select></label>
       <fieldset><legend>How should we reach you? (multiple choice)</legend><div class="kyc-checks"><label><input type="checkbox" name="kyc_notification_channels" value="Browser notification"> Browser notification</label><label><input type="checkbox" name="kyc_notification_channels" value="Email"> Email</label><label><input type="checkbox" name="kyc_notification_channels" value="SMS"> SMS</label><label><input type="checkbox" name="kyc_notification_channels" value="WhatsApp"> WhatsApp</label></div></fieldset>
+      <fieldset><legend>Frequent weather updates</legend><div class="kyc-checks"><label><input type="checkbox" name="weather_updates_enabled" value="yes" {% if profile.weather_updates_enabled %}checked{% endif %}> Send me a browser weather update every 5 minutes (up to 288 per day; readings may repeat)</label></div></fieldset>
       <label>Daily summary time<select class="field" name="kyc_daily_summary_time"><option value="">Choose</option><option>Early morning (6–8 AM)</option><option>Morning (8–10 AM)</option><option>Evening (5–7 PM)</option><option>I don't want a daily summary</option></select></label>
       <label>Preferred language<select class="field" name="kyc_language"><option value="">Choose</option><option>English</option><option>Hindi</option><option>Marathi</option><option>Tamil</option><option>Bengali</option><option>Other</option></select></label>
       <label>Temperature unit<select class="field" name="kyc_temperature_unit"><option value="Celsius">Celsius (°C)</option><option value="Fahrenheit">Fahrenheit (°F)</option></select></label>
@@ -78,7 +79,7 @@
     Enable browser notifications
   </button>
   <p class="muted help" id="push-status" role="status">
-    Enable notifications to receive important air-quality alerts.
+    Enable browser push to receive weather updates and alerts you've opted into.
   </p>
 </div>
 

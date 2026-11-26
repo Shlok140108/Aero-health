@@ -51,6 +51,38 @@ def _round(v, nd=0):
     return round(v) if nd == 0 else round(v, nd)
 
 
+def fetch_current_weather(lat, lon):
+    """Fetch current weather fields needed for periodic push summaries."""
+    data = _get(WEATHER_URL, {
+        "latitude": lat,
+        "longitude": lon,
+        "timezone": "auto",
+        "wind_speed_unit": "kmh",
+        "current": (
+            "temperature_2m,apparent_temperature,relative_humidity_2m,"
+            "precipitation,weather_code,wind_speed_10m,is_day"
+        ),
+        "hourly": "precipitation_probability",
+    })
+    current, hourly = data["current"], data["hourly"]
+    observed_at = current["time"]
+    hour_index = next(
+        (i for i, value in enumerate(hourly["time"]) if value[:13] == observed_at[:13]),
+        0,
+    )
+    description, _ = wmo(current["weather_code"], current.get("is_day", 1))
+    return {
+        "description": description,
+        "temperature": _round(current["temperature_2m"]),
+        "feels_like": _round(current["apparent_temperature"]),
+        "humidity": _round(current["relative_humidity_2m"]),
+        "wind_kmh": _round(current["wind_speed_10m"]),
+        "precipitation_mm": _round(current.get("precipitation") or 0, 1),
+        "rain_chance": _round(hourly["precipitation_probability"][hour_index]),
+        "observed_at": observed_at,
+    }
+
+
 def _theme(code, is_day):
     """Background theme key for the hero card."""
     if code in (95, 96, 99): return "storm"
